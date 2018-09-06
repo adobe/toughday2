@@ -1,0 +1,35 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.adobe.qe</groupId>
+	<artifactId>toughday2.reactor</artifactId>
+	<packaging>pom</packaging>
+	<version>0.1.0-SNAPSHOT</version>
+
+	<licenses>
+		<license>
+			<name>Apache License, Version 2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<scm>
+		<connection>scm:git:git@github.com:adobe/toughday2.git</connection>
+		<developerConnection>scm:git:git@github.com:adobe/toughday2.git</developerConnection>
+		<url>https://github.com/adobe/toughday2/</url>
+		<tag>HEAD</tag>
+	</scm>
+
+	<modules>
+		<module>toughday2-api</module>
+		<module>toughday2-tests-parent</module>
+		<module>sling-td2</module>
+		<module>sling-td2-tests-parent</module>
+		<module>aem-td2-core-tests</module>
+		<module>toughday_sample</module>
+		<module>toughday</module>
+		<module>aem-td2-tests-parent</module>
+		<module>toughday_tests_sample</module>
+	</modules>
+</project>

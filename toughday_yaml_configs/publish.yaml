@@ -1,0 +1,15 @@
+tests:
+  - add : GetTest
+    properties:
+      name : Get1
+      path : /
+      weight : 1
+  - add : GetTest
+    properties:
+      name : Get2
+      path : /
+      weight : 1
+  - add : GetHomepageTest
+    properties:
+      weight: 1
+

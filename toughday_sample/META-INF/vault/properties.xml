@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+<comment>FileVault Package Properties</comment>
+<entry key="createdBy">admin</entry>
+<entry key="name">toughday_sample</entry>
+<entry key="lastModified">2016-12-19T15:46:55.529+02:00</entry>
+<entry key="lastModifiedBy">admin</entry>
+<entry key="created">2016-12-19T15:46:55.891+02:00</entry>
+<entry key="buildCount">2</entry>
+<entry key="version">2.0</entry>
+<entry key="dependencies"/>
+<entry key="packageFormatVersion">2</entry>
+<entry key="description"/>
+<entry key="lastWrapped">2016-12-19T15:46:55.529+02:00</entry>
+<entry key="group">com.adobe.qe.toughday</entry>
+<entry key="lastWrappedBy">admin</entry>
+</properties>

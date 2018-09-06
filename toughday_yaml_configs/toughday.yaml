@@ -1,0 +1,49 @@
+globals:
+  port : 4502
+  
+runmode:
+  type : normal
+  waittime : 300
+  concurrency : 200
+
+publishmode:
+  type : simple
+
+tests:
+  - add : CreateLiveCopyTreeTest
+    properties :
+      name : CreateLiveCopy
+      weight : 5
+      base : 5
+      sourcepagetitle : IAmAPage
+ 
+  - add : CreateAssetTreeTest
+    properties :
+      name : UploadAsset
+      weight : 5
+      base : 3
+      foldertitle : IAmAFolder
+      assettitle : IAmAnAsset
+
+  - add : DeleteImageTest
+    properties :
+      name : DeleteAsset
+      weight : 5
+
+  - add : QueryBuilderTest
+    properties :
+      name : Query
+      weight : 10
+      query : type=nt:unstructured&group.1_path=/libs&orderby=@jcr:score&orderby.sort=desc
+
+  - add : GetHomepageTest
+    properties :
+      name : GetHomepage
+      weight : 75
+
+publishers:
+  - add : ConsolePublisher
+  - add : CSVPublisher
+    properties :
+      filepath : my_results.csv
+      append : true

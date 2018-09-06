@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root xmlns:sling="http://sling.apache.org/jcr/sling/1.0" xmlns:cq="http://www.day.com/jcr/cq/1.0" xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:mix="http://www.jcp.org/jcr/mix/1.0" xmlns:nt="http://www.jcp.org/jcr/nt/1.0"
+    jcr:primaryType="cq:Page">
+    <jcr:content
+        cq:lastModified="{Date}2016-12-19T15:25:03.215+02:00"
+        cq:lastModifiedBy="translation-job-service"
+        cq:lastTranslationUpdate="{Date}2016-12-19T15:25:03.215+02:00"
+        cq:template="/conf/toughday-templates/settings/wcm/templates/toughday-template"
+        cq:translationProject="[/content/projects/le_toughday_/french__fr_]"
+        jcr:isCheckedOut="{Boolean}true"
+        jcr:mixinTypes="[mix:versionable]"
+        jcr:primaryType="cq:PageContent"
+        jcr:title="Le ToughDay"
+        jcr:uuid="95354d0b-54e1-49c3-a97b-662476720799"
+        sling:resourceType="wcm/foundation/components/page">
+        <root
+            jcr:lastModified="{Date}2016-12-19T15:07:49.318+02:00"
+            jcr:lastModifiedBy="admin"
+            jcr:primaryType="nt:unstructured"
+            sling:resourceType="wcm/foundation/components/responsivegrid">
+            <title
+                jcr:created="{Date}2016-12-19T14:49:59.700+02:00"
+                jcr:createdBy="admin"
+                jcr:lastModified="{Date}2016-12-19T14:49:59.700+02:00"
+                jcr:lastModifiedBy="admin"
+                jcr:primaryType="nt:unstructured"
+                sling:resourceType="wcm/foundation/components/title"/>
+            <text
+                jcr:created="{Date}2016-12-19T14:51:25.499+02:00"
+                jcr:createdBy="admin"
+                jcr:lastModified="{Date}2016-12-19T14:52:08.403+02:00"
+                jcr:lastModifiedBy="admin"
+                jcr:primaryType="nt:unstructured"
+                sling:resourceType="wcm/foundation/components/text"
+                text="&lt;p>Lorem ipsum dolor sit amet, delenit assentior ei quo, movet gloriatur eum cu, tincidunt efficiendi no qui. Altera recteque cu nec, usu nibh nobis ei, nec in ornatus perpetua deseruisse. Oblique civibus cu mea. Ad sea doming vituperata, ea quaeque iracundia sed. At idque repudiandae vim, ne sit natum nobis, est cu ornatus accumsan nominavi.&lt;/p>&#xa;&lt;p>&amp;nbsp;&lt;/p>&#xa;&lt;p>Mel ad dicant dissentias, in ius rebum eleifend convenire. Ut vix quodsi aliquam mediocrem, pri cu quas veniam disputando. Ea graece mediocrem vis. Mucius definitionem sea ei, possim placerat cu sit, no esse movet vis. Ad quaeque fastidii vix, in iusto sensibus duo. Velit impetus appellantur no ius, sea et dicat vivendo denique, menandri dissentiunt vel ea. Mel quem purto sonet cu, invidunt erroribus posidonium no eos, iudico singulis neglegentur an vis.&lt;/p>&#xa;&lt;p>&amp;nbsp;&lt;/p>&#xa;&lt;p>Ne zril dissentias mel, qui at habeo labore euismod. Mea option concludaturque cu, mutat feugait propriae ut cum, ut eleifend scribentur ius. Ea maiorum detracto neglegentur qui, dolore everti conceptam duo ea. Has no magna utroque, an nominavi convenire has. An enim percipit pri, vix et ridens vocibus. His facilis salutandi ad.&lt;/p>&#xa;&lt;p>&amp;nbsp;&lt;/p>&#xa;&lt;p>Nec nihil constituto inciderint ea. Vix cu facer menandri forensibus, wisi virtute mei eu. Eos agam verear necessitatibus ex, cu zril dicant tamquam his, vel te assum dicunt legimus. Ut est nostrum fastidii, ea quo prompta atomorum ocurreret, eos alia falli pericula id. Ut ipsum erroribus vel, semper veritus eam ut. An ullum intellegebat eos, doming efficiendi qui ea. Vix an purto ipsum, id eam assum ullamcorper.&lt;/p>&#xa;&lt;p>&amp;nbsp;&lt;/p>&#xa;&lt;p>Ne praesent partiendo dissentiunt per, vim ex decore dictas. Est nihil recteque in, everti deterruisset at sea. Meliore platonem ei vel, ea sea iudico populo torquatos. At qui lorem posidonium, qui liber iuvaret consequuntur ne. Utinam praesent in sit, pri modus aliquam posidonium in. Cum esse erat id, vix homero repudiandae ei. Homero labitur dissentiunt ius in.&lt;/p>&#xa;"
+                textIsRich="true"/>
+            <image
+                jcr:created="{Date}2016-12-19T15:02:45.519+02:00"
+                jcr:createdBy="admin"
+                jcr:lastModified="{Date}2016-12-19T15:07:21.864+02:00"
+                jcr:lastModifiedBy="admin"
+                jcr:primaryType="nt:unstructured"
+                sling:resourceType="wcm/foundation/components/image"
+                fileReference="/content/dam/toughday/fr/ToughDay.jpeg"
+                height="0"
+                width="800"/>
+        </root>
+    </jcr:content>
+</jcr:root>

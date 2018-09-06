@@ -1,0 +1,60 @@
+Configuration:
+    status: warn
+    shutdownHook: disable
+
+    Appenders:
+        Console:
+            name: Console
+            target: SYSTEM_OUT
+            PatternLayout:
+                Pattern: "%d{yyyy-MM-dd HH:mm:ss} %-5p: %m%n"
+
+        RollingFile:
+          - name: CoreFile
+            fileName: "${sys:logFileName}/logs_${date:yyyy-MM-dd'T'HH-mm}/toughday.log"
+            filePattern: "logs/$${date:yyyy-MM}/application-%d{MM-dd-yyyy}-%i.log.gz"
+            PatternLayout:
+                Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5p: %m%n"
+            Policies:
+                SizeBasedTriggeringPolicy:
+                  size: 250 MB
+          - name: TestsFile
+            fileName: "${sys:logFileName}/logs_${date:yyyy-MM-dd'T'HH-mm}/toughday_tests.log"
+            filePattern: "logs/$${date:yyyy-MM}/application-%d{MM-dd-yyyy}-%i.log.gz"
+            PatternLayout:
+                Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5p: %m%n"
+            Policies:
+                SizeBasedTriggeringPolicy:
+                  size: 250 MB
+    Loggers:
+        Root:
+            level: info
+            additivity: false
+            AppenderRef:
+                ref: CoreFile
+        Logger:
+          - name: com.adobe.qe.toughday.Main
+            level: info
+            additivity: false
+            AppenderRef:
+                ref: Console
+          - name: com.adobe.qe.toughday.internal.core
+            level: info
+            additivity: false
+            AppenderRef:
+                ref: CoreFile
+          - name: com.adobe.qe.toughday.tests
+            level: info
+            additivity: false
+            AppenderRef:
+                ref: TestsFile
+          - name: org.apache
+            level: info
+            additivity: false
+            AppenderRef:
+                ref: TestsFile
+          - name: org.reflections.Reflections
+            level: error
+            additivity: false
+            AppenderRef:
+                ref: CoreFile
