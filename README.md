@@ -9,7 +9,6 @@ You can download the latest version from: https://repo.adobe.com/nexus/content/r
 Usage
 =====
 
-https://helpx.adobe.com/experience-manager/6-4/sites/developing/using/tough-day.html
 https://github.com/adobe/toughday2/wiki
 
 Development
