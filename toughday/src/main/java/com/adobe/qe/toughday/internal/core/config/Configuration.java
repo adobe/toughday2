@@ -41,10 +41,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -139,7 +136,7 @@ public class Configuration {
         List<URL> urls = new ArrayList<>();
         for (String filename : extensionsFileNames) {
             try {
-                urls.add(new URL("jar:file:" + filename + "!/"));
+                urls.add(new URL("file:" + Paths.get(filename).toAbsolutePath().toString()));
             } catch (MalformedURLException e) {
                 e.printStackTrace();
             }
@@ -152,6 +149,7 @@ public class Configuration {
 
     private ClassLoader processJarFiles(List<JarFile> jarFiles, URL[] urls) throws MalformedURLException {
         ToughdayExtensionClassLoader classLoader = new ToughdayExtensionClassLoader(urls, Thread.currentThread().getContextClassLoader());
+
         Map<String, String> newClasses = new HashMap<>();
         Thread.currentThread().setContextClassLoader(classLoader);
 
