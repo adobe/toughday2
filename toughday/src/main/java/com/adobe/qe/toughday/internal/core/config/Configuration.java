@@ -149,7 +149,7 @@ public class Configuration {
 
     private ClassLoader processJarFiles(List<JarFile> jarFiles, URL[] urls) throws MalformedURLException {
         ToughdayExtensionClassLoader classLoader = new ToughdayExtensionClassLoader(urls, Thread.currentThread().getContextClassLoader());
-
+        
         Map<String, String> newClasses = new HashMap<>();
         Thread.currentThread().setContextClassLoader(classLoader);
 
@@ -343,7 +343,6 @@ public class Configuration {
             setObjectProperties(testObject, itemMeta.getParameters(), false);
             suite.add(testObject, index);
             items.put(testObject.getName(), testObject.getClass());
-
         } else if (globalArgs.containsPublisher(itemMeta.getName())) {
             Publisher publisherObject = globalArgs.getPublisher(itemMeta.getName());
             String name = publisherObject.getName();
@@ -365,6 +364,8 @@ public class Configuration {
         } else {
             throw new IllegalStateException("No test/publisher/metric found with name \"" + itemMeta.getName() + "\", so we can't configure it.");
         }
+
+        checkInvalidArgs(itemMeta.getParameters());
     }
 
     private void excludeItem(String itemName) {
@@ -565,7 +566,12 @@ public class Configuration {
             throw new IllegalStateException("A run mode with type \"" + type + "\" does not exist");
         }
 
-        return createObject(runModeClass, runModeParams);
+        runModeParams.remove("type");
+
+        RunMode runMode = createObject(runModeClass, runModeParams);
+        checkInvalidArgs(runModeParams);
+
+        return runMode;
     }
 
     private PublishMode getPublishMode(ConfigParams configParams)
@@ -582,7 +588,12 @@ public class Configuration {
             throw new IllegalStateException("A publish mode with type \"" + type + "\" does not exist");
         }
 
-        return createObject(publishModeClass, publishModeParams);
+        publishModeParams.remove("type");
+
+        PublishMode publishMode = createObject(publishModeClass, publishModeParams);
+        checkInvalidArgs(publishModeParams);
+
+        return publishMode;
     }
 
     private void applyLogLevel(Level level) {
