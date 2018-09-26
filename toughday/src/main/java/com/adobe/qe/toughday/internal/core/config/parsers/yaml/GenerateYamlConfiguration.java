@@ -9,13 +9,13 @@ the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTA
 OF ANY KIND, either express or implied. See the License for the specific language
 governing permissions and limitations under the License.
 */
+
 package com.adobe.qe.toughday.internal.core.config.parsers.yaml;
 
 import com.adobe.qe.toughday.internal.core.ReflectionsContainer;
 import com.adobe.qe.toughday.internal.core.config.Actions;
 import com.adobe.qe.toughday.internal.core.Timestamp;
 import com.adobe.qe.toughday.internal.core.config.ConfigParams;
-import com.adobe.qe.toughday.internal.core.config.Configuration;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.introspector.Property;
@@ -27,18 +27,18 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class GenerateYamlConfiguration {
 
     private ConfigParams configParams;
     private Map<String, Class> itemsIdentifiers;
-    private java.util.List<YamlDumpAction> yamlTestActions;
     private java.util.List<YamlDumpAction> yamlPublisherActions;
     private List<YamlDumpAction> yamlMetricActions;
     private List<YamlDumpAction> yamlExtensionActions;
+    private List<YamlDumpAction> yamlTestActions;
+    private List<YamlDumpPhase> yamlDumpPhases;
+    private boolean globalTests;
 
     private static final String DEFAULT_YAML_CONFIGURATION_FILENAME = "toughday_";
     private static final String DEFAULT_YAML_EXTENSION = ".yaml";
@@ -47,10 +47,11 @@ public class GenerateYamlConfiguration {
     public GenerateYamlConfiguration(ConfigParams configParams, Map<String, Class> items) {
         this.configParams = configParams;
         this.itemsIdentifiers = items;
-        yamlTestActions = new ArrayList<>();
         yamlPublisherActions = new ArrayList<>();
         yamlMetricActions = new ArrayList<>();
         yamlExtensionActions = new ArrayList<>();
+        yamlDumpPhases = new ArrayList<>();
+        yamlTestActions = new ArrayList<>();
         createActionsForItems();
     }
 
@@ -69,7 +70,11 @@ public class GenerateYamlConfiguration {
     }
 
     public List<YamlDumpAction> getTests() {
-        return yamlTestActions;
+        if (globalTests) {
+            return yamlTestActions;
+        }
+
+        return yamlDumpPhases.size() == 1? yamlDumpPhases.iterator().next().getTests() : yamlTestActions;
     }
 
     public List<YamlDumpAction> getPublishers() {
@@ -82,27 +87,64 @@ public class GenerateYamlConfiguration {
 
     public List<YamlDumpAction> getExtensions() { return yamlExtensionActions; }
 
+    public List<YamlDumpPhase> getPhases() {
+        if (globalTests) {
+            return yamlDumpPhases;
+        }
+
+        return yamlDumpPhases.size() != 1? yamlDumpPhases : new ArrayList<>();
+    }
+
     // creates a list of actions for each item(tests, publishers, metrics, extensions)
     private void createActionsForItems() {
+
         for (Map.Entry<Actions, ConfigParams.MetaObject> item : configParams.getItems()) {
-            switch (item.getKey()) {
-                case ADD:
-                    addAction((ConfigParams.ClassMetaObject)item.getValue());
-                    break;
-                case CONFIG:
-                    configAction((ConfigParams.NamedMetaObject)item.getValue());
-                    break;
-                case EXCLUDE:
-                    excludeAction(((ConfigParams.NamedMetaObject)item.getValue()).getName());
-                    break;
+            chooseAction(item, 0);
+
+            if (configParams.getTestIdentifiers().contains(item)) {
+                globalTests = true;
+            }
+        }
+
+        if (configParams.getPhasesParams().isEmpty()) {
+            globalTests = false;
+        }
+
+        List<ConfigParams.PhaseParams> phasesParams = configParams.getPhasesParams();
+        for (int i = 0; i < phasesParams.size(); ++i) {
+            ConfigParams.PhaseParams phaseParams = phasesParams.get(i);
+            YamlDumpPhase yamlDumpPhase = new YamlDumpPhase(phaseParams.getProperties(), phaseParams.getRunmode(), phaseParams.getPublishmode());
+            yamlDumpPhases.add(yamlDumpPhase);
+
+            for (Map.Entry<Actions, ConfigParams.MetaObject> item : phasesParams.get(i).getTests()) {
+                chooseAction(item, i + 1);
             }
         }
     }
 
-    private void addAction(ConfigParams.ClassMetaObject item) {
+    private void chooseAction(Map.Entry<Actions, ConfigParams.MetaObject> item, int index) {
+        switch (item.getKey()) {
+            case ADD:
+                addAction((ConfigParams.ClassMetaObject)item.getValue(), index);
+                break;
+            case CONFIG:
+                configAction((ConfigParams.NamedMetaObject)item.getValue(), index);
+                break;
+            case EXCLUDE:
+                excludeAction(((ConfigParams.NamedMetaObject)item.getValue()).getName(), index);
+                break;
+        }
+    }
+
+    private void addAction(ConfigParams.ClassMetaObject item, int index) {
         YamlDumpAddAction addAction = new YamlDumpAddAction(item.getClassName(), item.getParameters());
         if (ReflectionsContainer.getInstance().isTestClass(item.getClassName())) {
-            yamlTestActions.add(addAction);
+            if (index == 0) {
+                yamlTestActions.add(addAction);
+                return;
+            }
+
+            yamlDumpPhases.get(index - 1).getTests().add(addAction);
         } else if (ReflectionsContainer.getInstance().isPublisherClass(item.getClassName())) {
             yamlPublisherActions.add(addAction);
         } else if (ReflectionsContainer.getInstance().isMetricClass(item.getClassName())
@@ -113,10 +155,15 @@ public class GenerateYamlConfiguration {
         }
     }
 
-    private void configAction(ConfigParams.NamedMetaObject item) {
+    private void configAction(ConfigParams.NamedMetaObject item, int index) {
         YamlDumpConfigAction configAction = new YamlDumpConfigAction(item.getName(), item.getParameters());
         if (ReflectionsContainer.getInstance().isTestClass(itemsIdentifiers.get(item.getName()).getSimpleName())) {
-            yamlTestActions.add(configAction);
+            if (index == 0) {
+                yamlTestActions.add(configAction);
+                return;
+            }
+
+            yamlDumpPhases.get(index - 1).getTests().add(configAction);
         } else if (ReflectionsContainer.getInstance().isPublisherClass(itemsIdentifiers.get(item.getName()).getSimpleName())) {
             yamlPublisherActions.add(configAction);
         } else if (ReflectionsContainer.getInstance().isMetricClass(itemsIdentifiers.get(item.getName()).getSimpleName())) {
@@ -124,10 +171,15 @@ public class GenerateYamlConfiguration {
         }
     }
 
-    private void excludeAction(String item) {
+    private void excludeAction(String item, int index) {
         YamlDumpExcludeAction excludeAction = new YamlDumpExcludeAction(item);
         if (ReflectionsContainer.getInstance().isTestClass(itemsIdentifiers.get(item).getSimpleName())) {
-            yamlTestActions.add(excludeAction);
+            if (index == 0) {
+                yamlTestActions.add(excludeAction);
+                return;
+            }
+
+            yamlDumpPhases.get(index - 1).getTests().add(excludeAction);
         } else if (ReflectionsContainer.getInstance().isPublisherClass(itemsIdentifiers.get(item).getSimpleName())) {
             yamlPublisherActions.add(excludeAction);
         } else if (ReflectionsContainer.getInstance().isMetricClass(itemsIdentifiers.get(item).getSimpleName())) {
@@ -175,6 +227,9 @@ public class GenerateYamlConfiguration {
 
                 Method method = null;
                 try {
+                    if (propertyValue == null) {
+                        propertyValue = "";
+                    }
                     method = propertyValue.getClass().getMethod("isEmpty");
                 } catch (NoSuchMethodException e) { }
 
@@ -214,7 +269,5 @@ public class GenerateYamlConfiguration {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
-
 }

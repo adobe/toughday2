@@ -39,6 +39,7 @@ import java.util.*;
  * Parser for the command line arguments. It also prints the help message.
  */
 public class CliParser implements ConfigurationParser {
+    public final static List<Object> parserArgs = new ArrayList<>();
     private static final Logger LOGGER = LogManager.getLogger(CliParser.class);
 
     private static final String HELP_HEADER_FORMAT_WITH_TAGS = "   %-42s %-75s %-20s   %s";
@@ -50,7 +51,7 @@ public class CliParser implements ConfigurationParser {
     private static final String SUITE_HELP_HEADER = String.format("   %-40s %-40s   %s", "Suite", "Tags", "Description");
     private static Map<Integer, Map<String, ConfigArgSet>> availableGlobalArgs = new HashMap<>();
     private static List<ParserArgHelp> parserArgHelps = new ArrayList<>();
-    public final static List<Object> parserArgs = new ArrayList<>();
+
 
     public static final List<String> availableHelpOptions = Collections.unmodifiableList(
             new ArrayList<String>() {{
@@ -214,13 +215,13 @@ public class CliParser implements ConfigurationParser {
         return new String[] {prop, val};
     }
 
-    private int parseObjectProperties(int startIndex, String[] cmdLineArgs, HashMap<String, Object> args) {
-        int j;
-        for (j = startIndex; j < cmdLineArgs.length && !cmdLineArgs[j].startsWith("--"); j++) {
+    private HashMap<String, Object> parseObjectProperties(int startIndex, String[] cmdLineArgs) {
+        HashMap<String, Object> args = new HashMap<>();
+        for (int j = startIndex; j < cmdLineArgs.length && !cmdLineArgs[j].startsWith("--"); j++) {
             parseAndAddProperty(cmdLineArgs[j], args);
         }
 
-        return j - startIndex;
+        return args;
     }
 
     /**
@@ -235,29 +236,42 @@ public class CliParser implements ConfigurationParser {
         // action parameters
         for (int i = 0; i < cmdLineArgs.length; i++) {
             if (cmdLineArgs[i].startsWith("--")) {
-                HashMap<String, Object> args = new HashMap<>();
-                int skip = 0;
-
                 String arg = cmdLineArgs[i].substring(2);
-                if(Actions.isAction(arg)) {
+                if (arg.equals("phase")) {
+                    HashMap<String, Object> args = parseObjectProperties(i + 1, cmdLineArgs);
+                    configParams.createPhasewWithProperties(args);
+                    configParams.setGlobalLevel(false);
+                } else if(Actions.isAction(arg)) {
                     Actions action = Actions.fromString(arg);
                     String identifier = cmdLineArgs[i + 1];
-                    skip = parseObjectProperties(i+2, cmdLineArgs, args) + 1;
+                    HashMap<String, Object> args = parseObjectProperties(i + 2, cmdLineArgs);
+
+                    // currently, only tests can be local to phases
+                    // so, configParams will use testIdentifiers to check if it can add/config/exclude an item
+                    Set<String> testIdentifiers = configParams.getTestIdentifiers();
+                    if (ReflectionsContainer.getInstance().isTestClass(identifier)) {
+                        testIdentifiers.add(identifier);
+                        if (args.containsKey("name")) {
+                            testIdentifiers.add(args.get("name").toString());
+                        }
+                    } else if (testIdentifiers.contains(identifier)) {
+                        if (args.containsKey("name")) {
+                            testIdentifiers.add(args.get("name").toString());
+                        }
+                    }
                     action.apply(configParams, identifier, args);
                 } else if (arg.equals("publishmode")) {
-                    skip = parseObjectProperties(i+1, cmdLineArgs, args);
-                    configParams.setPublishModeParams(args);
+                    configParams.setPublishModeParams(parseObjectProperties(i + 1, cmdLineArgs));
                 } else if (arg.equals("runmode")) {
-                    skip = parseObjectProperties(i+1, cmdLineArgs, args);
-                    configParams.setRunModeParams(args);
+                    configParams.setRunModeParams(parseObjectProperties(i + 1, cmdLineArgs));
                 } else {
                     String[] res = parseProperty(arg);
                     String key = res[0];
                     Object val = getObjectFromString(res[1]);
                     // if global param does not exist
                     boolean found = false;
-                    for (Map<String, ConfigArgSet> argz : availableGlobalArgs.values()) {
-                        if (argz.containsKey(key)) {
+                    for (Map<String, ConfigArgSet> args : availableGlobalArgs.values()) {
+                        if (args.containsKey(key)) {
                             found = true;
                             break;
                         }
@@ -268,10 +282,6 @@ public class CliParser implements ConfigurationParser {
                    }
                     globalArgs.put(key, val);
                 }
-
-                i += skip;
-            } else {
-                throw new IllegalArgumentException("Unrecognized argument " + cmdLineArgs[i]);
             }
         }
         configParams.setGlobalParams(globalArgs);
@@ -571,7 +581,7 @@ public class CliParser implements ConfigurationParser {
                 System.out.printf("\t%-32s\r\n", test.getFullName() + " [" + test.getClass().getSimpleName() + "]");
                 if (withTestProperties) {
                     try {
-                        Engine.printObject(testSuite, System.out, test);
+                        Engine.printObject(System.out, test);
                     } catch (Exception e) {
                         LOGGER.error("Exception while printing the test suite.", e);
                     }

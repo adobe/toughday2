@@ -13,9 +13,13 @@ package com.adobe.qe.toughday.internal.core.config.parsers.yaml;
 
 import com.adobe.qe.toughday.internal.core.config.ConfigParams;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Created by tuicu on 28/12/16.
+ */
 public class YamlConfiguration {
 
     private ConfigParams configParams = new ConfigParams();
@@ -54,6 +58,39 @@ public class YamlConfiguration {
         for (YamlParseAction yamlAction : extensions) {
             yamlAction.getAction().apply(configParams, yamlAction.getIdentifier(), yamlAction.getProperties());
         }
+    }
+
+    public void setPhases(List<YamlParsePhase> phases) {
+        configParams.setGlobalLevel(false);
+        for (YamlParsePhase yamlParsePhase : phases) {
+            ConfigParams.PhaseParams phase = new ConfigParams.PhaseParams();
+            if (yamlParsePhase.getName() != null) {
+                phase.getProperties().put("name", yamlParsePhase.getName());
+            }
+
+            if (yamlParsePhase.getMeasurable() != null) {
+                phase.getProperties().put("measurable", yamlParsePhase.getMeasurable());
+            }
+
+            if (yamlParsePhase.getUseconfig() != null) {
+                phase.getProperties().put("useconfig", yamlParsePhase.getUseconfig());
+            }
+
+            configParams.getPhasesParams().add(phase);
+
+            if (yamlParsePhase.getRunmode() != null) {
+                setRunmode(yamlParsePhase.getRunmode());
+            }
+
+            if (yamlParsePhase.getPublishmode() != null) {
+                setPublishmode(yamlParsePhase.getPublishmode());
+            }
+
+            if (yamlParsePhase.getTests() != null) {
+                setTests(yamlParsePhase.getTests());
+            }
+        }
+        configParams.setGlobalLevel(true);
     }
 
     public ConfigParams getConfigParams() {

@@ -23,27 +23,13 @@ import java.util.Collection;
 public class AsyncTimeoutChecker extends AsyncEngineWorker {
     private Engine engine;
     private final Thread mainThread;
-    private RunMode.RunContext context;
-    private long minTimeout;
-    private TestSuite testSuite;
 
     /**
      * Constructor.
-     * @param testSuite
-     * @param context list of test workers from this engine.
      */
-    public AsyncTimeoutChecker(Engine engine, TestSuite testSuite, RunMode.RunContext context, Thread mainThread) {
+    public AsyncTimeoutChecker(Engine engine, Thread mainThread) {
         this.engine = engine;
         this.mainThread = mainThread;
-        this.context = context;
-        this.testSuite = testSuite;
-        minTimeout = engine.getGlobalArgs().getTimeout();
-        for(AbstractTest test : testSuite.getTests()) {
-            if(test.getTimeout() < 0) {
-                continue;
-            }
-            minTimeout = Math.min(minTimeout, test.getTimeout());
-        }
     }
 
     /**
@@ -83,18 +69,32 @@ public class AsyncTimeoutChecker extends AsyncEngineWorker {
     public void run() {
         try {
             while(!isFinished()) {
-                Thread.sleep(Math.round(Math.ceil(minTimeout * Engine.TIMEOUT_CHECK_FACTOR)));
-                Collection<AsyncTestWorker> testWorkers = context.getTestWorkers();
-                synchronized (testWorkers) {
-                    for (AsyncTestWorker worker : testWorkers) {
-                        interruptWorkerIfTimeout(worker);
-                    }
+                long minTimeout = engine.getGlobalArgs().getTimeout();
+                try {
+                    engine.getCurrentPhaseLock().readLock().lock();
+                    minTimeout = engine.getCurrentPhase().getTestSuite().getMinTimeout();
+                } finally {
+                    engine.getCurrentPhaseLock().readLock().unlock();
                 }
-                if (context.isRunFinished()) {
-                    this.finishExecution();
-                    if(engine.areTestsRunning()) {
-                        mainThread.interrupt();
+
+                try {
+                    Thread.sleep(Math.round(Math.ceil(minTimeout * Engine.TIMEOUT_CHECK_FACTOR)));
+
+                    engine.getCurrentPhaseLock().readLock().lock();
+                    RunMode.RunContext context =  engine.getCurrentPhase().getRunMode().getRunContext();
+                    Collection<AsyncTestWorker> testWorkers = context.getTestWorkers();
+                    synchronized (testWorkers) {
+                        for (AsyncTestWorker worker : testWorkers) {
+                            interruptWorkerIfTimeout(worker);
+                        }
                     }
+                    if (context.isRunFinished()) {
+                        if(engine.areTestsRunning() && mainThread.getState() == Thread.State.TIMED_WAITING) {
+                            mainThread.interrupt();
+                        }
+                    }
+                } finally {
+                    engine.getCurrentPhaseLock().readLock().unlock();
                 }
             }
         } catch (InterruptedException e) {

@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.CharBuffer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -41,11 +42,22 @@ public class ConsolePublisher extends Publisher {
     private final CleanerThread cleaner;
     private Scanner sc;
     private AtomicInteger extraLines;
+    private String asterisks = null;
 
 
     @ConfigArgSet(required = false, defaultValue = "false", desc = "Enable the raw result publishing")
     public void setRawPublish(String rawPublish) {
         super.setRawPublish(rawPublish);
+    }
+
+    @ConfigArgSet(required = false, defaultValue = "true", desc = "Clear the screen before printing each stat")
+    public void setClear(String clearScreen) {
+        this.clearScreen = Boolean.parseBoolean(clearScreen);
+    }
+
+    @ConfigArgGet
+    public boolean getClear() {
+        return this.clearScreen;
     }
 
     class CleanerThread extends Thread {
@@ -73,8 +85,8 @@ public class ConsolePublisher extends Publisher {
                         extraLines.incrementAndGet();
                     }
                 }
-            } catch (IOException e) {
-            } catch (InterruptedException e) {
+            } catch (IOException | InterruptedException e) {
+                // nop
             }
         }
     }
@@ -87,15 +99,6 @@ public class ConsolePublisher extends Publisher {
         this.cleaner.start();
     }
 
-    @ConfigArgSet(required = false, defaultValue = "true", desc = "Clear the screen before printing each stat")
-    public void setClear(String clearScreen) {
-        this.clearScreen = Boolean.parseBoolean(clearScreen);
-    }
-
-    @ConfigArgGet
-    public boolean getClear() {
-        return this.clearScreen;
-    }
 
     private void alignMetrics() {
         System.out.println();
@@ -111,6 +114,19 @@ public class ConsolePublisher extends Publisher {
         int nrStats = results.size() * nrLinesPerTest;
         final String FORMAT = "%-37s | ";
         // "clear" screen
+        if (!begun) {
+            if (asterisks == null) {
+                // this wil have to be changed when metrics become local to phases probably
+                // maybe change asterisks depending on the number of metrics per phase
+                int metricsPerLine = nrMetrics < 3 ? nrMetrics : METRICS_PER_LINE_LIMIT;
+
+                // 35 asterisks for the test name, 40 for each metric, -1 because there will be one extra space left
+                asterisks = CharBuffer.allocate(35 + 40 * metricsPerLine - 1).toString().replace('\0', '*');
+            }
+            System.out.println();
+            System.out.println(asterisks);
+        }
+
         if (begun && clearScreen) {
 //            for (int i=0; i < nrStats + extraLines.get(); i++ ) {
 //                System.out.print("\33[1A\33[2K");
@@ -156,10 +172,19 @@ public class ConsolePublisher extends Publisher {
     @Override
     protected void doPublishAggregatedFinal(Map<String, List<MetricResult>> results) {
         this.clearScreen = false;
-        System.out.println("********************************************************************");
-        System.out.println("                       FINAL RESULTS");
-        System.out.println("********************************************************************");
+        String message = "FINAL RESULTS";
+        int spaces = message.length() > asterisks.length() ? 0 : (asterisks.length() - message.length()) / 2;
+        System.out.println(asterisks);
+        System.out.println(CharBuffer.allocate(spaces).toString().replace('\0', ' ') + message);
+        System.out.println(asterisks);
         publishAggregated(results);
+        System.out.println(asterisks);
+        System.out.println();
+        System.out.println("___");
+        System.out.println();
+
+        this.begun = false;
+        this.clearScreen = true;
     }
 
     @Override

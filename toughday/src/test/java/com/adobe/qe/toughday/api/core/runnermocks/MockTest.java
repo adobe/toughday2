@@ -15,7 +15,11 @@ import com.adobe.qe.toughday.api.annotations.After;
 import com.adobe.qe.toughday.api.annotations.Before;
 import com.adobe.qe.toughday.api.core.AbstractTest;
 import com.adobe.qe.toughday.api.core.AbstractTestRunner;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.simple.SimpleLogger;
+import org.apache.logging.log4j.util.PropertiesUtil;
 
 import java.util.ArrayList;
 import java.util.List;

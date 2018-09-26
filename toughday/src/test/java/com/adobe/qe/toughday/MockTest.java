@@ -34,7 +34,7 @@ public class MockTest extends AbstractTest {
 
     @Override
     public AbstractTest newInstance() {
-        return null;
+        return new MockTest();
     }
 
     @Override

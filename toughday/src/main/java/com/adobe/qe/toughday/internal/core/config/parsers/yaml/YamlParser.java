@@ -17,9 +17,13 @@ import com.adobe.qe.toughday.internal.core.config.ParserArgHelp;
 import org.yaml.snakeyaml.TypeDescription;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
+/**
+ * Created by tuicu on 26/12/16.
+ */
 public class YamlParser implements ConfigurationParser {
     public static final String CONFIG_FILE_ARG_NAME = "configfile";
     public static final String CONFIG_FILE_DESCRIPTION = "Config file in yaml format.";
@@ -57,11 +61,13 @@ public class YamlParser implements ConfigurationParser {
                 Constructor constructor = new Constructor(YamlConfiguration.class);
                 TypeDescription yamlParserDesc = new TypeDescription(YamlConfiguration.class);
                 yamlParserDesc.putListPropertyType("tests", YamlParseAction.class);
+                yamlParserDesc.putListPropertyType("phases", YamlParsePhase.class);
                 yamlParserDesc.putListPropertyType("publishers", YamlParseAction.class);
                 yamlParserDesc.putListPropertyType("metrics", YamlParseAction.class);
                 yamlParserDesc.putListPropertyType("extensions", YamlParseAction.class);
 
                 constructor.addTypeDescription(yamlParserDesc);
+
                 Yaml yaml = new Yaml(constructor);
                 YamlConfiguration yamlConfig = (YamlConfiguration) yaml.load(new FileInputStream(configFilePath));
 

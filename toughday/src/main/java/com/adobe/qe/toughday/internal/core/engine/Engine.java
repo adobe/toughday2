@@ -38,6 +38,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -53,10 +55,10 @@ public class Engine {
     private final Configuration configuration;
     private GlobalArgs globalArgs;
     private ExecutorService engineExecutorService = Executors.newFixedThreadPool(2);
-    private Map<AbstractTest, AtomicLong> counts = new HashMap<>();
     private final ReentrantReadWriteLock engineSync = new ReentrantReadWriteLock();
-    private PublishMode publishMode;
-    private RunMode runMode;
+    private List<Phase> phases;
+    private Phase currentPhase;
+    private final ReadWriteLock currentPhaseLock = new ReentrantReadWriteLock();
     private volatile boolean testsRunning;
 
     /**
@@ -67,40 +69,26 @@ public class Engine {
      * @throws InstantiationException caused by reflection
      * @throws IllegalAccessException caused by reflection
      */
-    public Engine(Configuration configuration)
-            throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    public Engine(Configuration configuration) {
         this.configuration = configuration;
         this.globalArgs = configuration.getGlobalArgs();
-        this.runMode = configuration.getRunMode();
-        this.publishMode = configuration.getPublishMode();
+        this.phases = configuration.getPhases();
 
         //TODO find a better way to do this
-        publishMode.setEngine(this);
-
-        for(AbstractTest test : configuration.getTestSuite().getTests()) {
-            add(test);
+        for (Phase phase : phases) {
+            phase.getPublishMode().setEngine(this);
         }
     }
+
+
+    public Configuration getConfiguration() { return configuration; }
 
     /**
      * Returns the global args
      * @return
      */
-
-    public RunMapImpl getGlobalRunMap() { return publishMode.getGlobalRunMap(); }
-
-    public Configuration getConfiguration() { return configuration; }
-
     public GlobalArgs getGlobalArgs() {
         return globalArgs;
-    }
-
-    public Map<AbstractTest, AtomicLong> getCounts() {
-        return counts;
-    }
-
-    public PublishMode getPublishMode() {
-        return publishMode;
     }
 
     public boolean areTestsRunning() { return testsRunning; }
@@ -122,8 +110,8 @@ public class Engine {
     }
 
     private Engine addToRunMap(AbstractTest test) {
-        publishMode.getGlobalRunMap().addTest(test);
-        counts.put(test, new AtomicLong(0));
+        currentPhase.getPublishMode().getRunMap().addTest(test);
+        currentPhase.getCounts().put(test, new AtomicLong(0));
         if(test.includeChildren()) {
             for (AbstractTest child : test.getChildren()) {
                 addToRunMap(child);
@@ -183,32 +171,45 @@ public class Engine {
     }
 
     public static void printConfiguration(Configuration configuration, PrintStream out) throws InvocationTargetException, IllegalAccessException {
+        out.println();
         out.println("#################### Configuration ######################");
         out.println("Global configuration:");
-        printObject(configuration.getTestSuite(), out, configuration.getGlobalArgs());
-
-        out.println("Run mode configuration: ");
-        printObject(configuration.getTestSuite(), out, configuration.getRunMode());
-
-        out.println("Publish mode configuration: ");
-        printObject(configuration.getTestSuite(), out, configuration.getPublishMode());
-
-        out.println("Tests:");
-        for(AbstractTest test : configuration.getTestSuite().getTests()) {
-            printObject(configuration.getTestSuite(), out, test);
-        }
+        printObject(out, configuration.getGlobalArgs());
 
         out.println("Publishers:");
-        for(Publisher publisher : configuration.getGlobalArgs().getPublishers()) {
-            printObject(configuration.getTestSuite(), out, publisher);
+        for (Publisher publisher : configuration.getGlobalArgs().getPublishers()) {
+            printObject(out, publisher);
         }
 
         out.println("Metrics:");
         for (Metric metric : configuration.getGlobalArgs().getMetrics()) {
-            printObject(configuration.getTestSuite(), out, metric);
+            printObject(out, metric);
         }
 
-        out.println("#########################################################");
+        int i = 1;
+        for (Phase phase : configuration.getPhases()) {
+            out.println("######################## Phase " + i + " ########################");
+            ++i;
+
+            out.println("Phase configuration: ");
+            printObject(out, phase);
+
+            out.println("Run mode configuration: ");
+            printObject(out, phase.getRunMode());
+
+            out.println("Publish mode configuration: ");
+            printObject(out, phase.getPublishMode());
+
+            out.println("Tests:");
+            for (AbstractTest test : phase.getTestSuite().getTests()) {
+                printObject(out, test);
+            }
+
+            out.println("#########################################################");
+
+            out.println();
+            out.println();
+        }
     }
 
     public static void installToughdayContentPackage(GlobalArgs globalArgs) throws Exception {
@@ -229,7 +230,7 @@ public class Engine {
         logGlobal("Finished installing ToughDay 2 Content Package.");
     }
 
-    public static void printObject(TestSuite testSuite, PrintStream out, Object obj)
+    public static void printObject(PrintStream out, Object obj)
             throws InvocationTargetException, IllegalAccessException {
         Class objectClass = obj.getClass();
         out.println("- Configuration for object of class " + objectClass.getSimpleName()+" ["+objectClass.getName()+"]");
@@ -273,7 +274,7 @@ public class Engine {
             }
             currentClass = currentClass.getSuperclass();
         }
-        test.benchmark().setRunMap(getGlobalRunMap());
+        test.benchmark().setRunMap(currentPhase.getPublishMode().getRunMap());
         for(Method setupMethod : setupMethods) {
             setupMethod.setAccessible(true);
             setupMethod.invoke(test);
@@ -302,34 +303,23 @@ public class Engine {
             printConfiguration(this.getConfiguration(), System.out);
             return;
         }
-        
-        TestSuite testSuite = configuration.getTestSuite();
-
-        // Run the setup step of the suite
-        for (SuiteSetup setupStep : testSuite.getSetupStep()) {
-            setupStep.setup();
-        }
-
-        //TODO move this to a better place while keeping in mind to preserve the execution order.
-        for(AbstractTest test : testSuite.getTests()) {
-            runSetup(test);
-        }
-
-        publishMode.getGlobalRunMap().reinitStartTimes();
 
         // Create the result aggregator thread
-        AsyncResultAggregator resultAggregator = new AsyncResultAggregator(this, runMode.getRunContext());
-        engineExecutorService.execute(resultAggregator);
+        AsyncResultAggregator resultAggregator = new AsyncResultAggregator(this);
 
         // Create the timeout checker thread
-        AsyncTimeoutChecker timeoutChecker = new AsyncTimeoutChecker(this, configuration.getTestSuite(), runMode.getRunContext(), Thread.currentThread());
-        engineExecutorService.execute(timeoutChecker);
+        AsyncTimeoutChecker timeoutChecker = new AsyncTimeoutChecker(this, Thread.currentThread());
 
         Thread shutdownHook = new Thread() {
             public void run() {
                 try {
-                    runMode.finishExecutionAndAwait();
-                    String finishTime = Engine.getCurrentDateTime();
+                    currentPhaseLock.readLock().lock();
+
+                    boolean wasMeasurable;
+                    wasMeasurable = currentPhase.getMeasurable();
+                    currentPhase.setMeasurable("false");
+
+                    currentPhase.getRunMode().finishExecutionAndAwait();
 
                     // interrupt extra test threads
                     // TODO: this is suboptimal, replace with a better mechanism for notifications
@@ -342,13 +332,17 @@ public class Engine {
                     timeoutChecker.finishExecution();
                     resultAggregator.finishExecution();
                     resultAggregator.aggregateResults();
-                    shutdownAndAwaitTermination(runMode.getExecutorService());
+                    shutdownAndAwaitTermination(currentPhase.getRunMode().getExecutorService());
                     shutdownAndAwaitTermination(engineExecutorService);
-                    publishMode.publish(getGlobalRunMap().getCurrentTestResults());
-                    publishMode.publishFinalResults(resultAggregator.filterResults());
+                    currentPhase.getPublishMode().publish(currentPhase.getPublishMode().getRunMap().getCurrentTestResults());
+
+                    if (wasMeasurable) {
+                        currentPhase.getPublishMode().publishFinalResults(resultAggregator.filterResults());
+                    }
                 } catch (Throwable e) {
                     System.out.println("Exception in shutdown hook!");
                     e.printStackTrace();
+                    currentPhaseLock.readLock().unlock();
                 }
                 Engine.logGlobal("Test execution finished at: " + Engine.getCurrentDateTime());
                 LogManager.shutdown();
@@ -356,21 +350,85 @@ public class Engine {
         };
 
         Runtime.getRuntime().addShutdownHook(shutdownHook);
-        this.testsRunning = true;
-        runMode.runTests(this);
 
-        // This thread sleeps until the duration
-        try {
-            Thread.sleep(globalArgs.getDuration() * 1000L);
-        } catch (InterruptedException e) {
-            LOG.info("Engine Interrupted", e);
-        } finally {
-            testsRunning = false;
-            Runtime.getRuntime().removeShutdownHook(shutdownHook);
-            shutdownHook.run();
+        Set<Phase> phasesWithoutDuration = configuration.getPhasesWithoutDuration();
+        engineExecutorService.execute(resultAggregator);
+        engineExecutorService.execute(timeoutChecker);
+
+        int i = 0;
+        for (Phase phase : phases) {
+            ++i;
+            testsRunning = true;
+
+            try {
+                currentPhaseLock.readLock().lock();
+                currentPhase = phase;
+            } finally {
+                currentPhaseLock.readLock().unlock();
+            }
+
+            phasesWithoutDuration.remove(phase);
+            currentPhase.getPublishMode().getRunMap().reinitStartTimes();
+
+            // Run the setup step of the suite
+            for (SuiteSetup setupStep : phase.getTestSuite().getSetupStep()) {
+                setupStep.setup();
+            }
+
+            for (AbstractTest test : phase.getTestSuite().getTests()) {
+                runSetup(test);
+            }
+
+            for (AbstractTest test : phase.getTestSuite().getTests()) {
+                add(test);
+            }
+
+            RunMode currentRunmode = phase.getRunMode();
+            Long currentDuration = phase.getDuration();
+
+            currentRunmode.runTests(this);
+            long start = System.currentTimeMillis();
+
+            try {
+                Thread.sleep(currentDuration * 1000L);
+
+            } catch (InterruptedException e) {
+                LOG.info("Phase interrupted.");
+                long elapsed = System.currentTimeMillis() - start;
+
+                if (!phasesWithoutDuration.isEmpty()) {
+                long timeToDistributePerPhase = (currentDuration - elapsed / 1000) / phasesWithoutDuration.size();
+                    for (Phase phaseWithoutDuration : configuration.getPhasesWithoutDuration()) {
+                        phaseWithoutDuration.setDuration(phaseWithoutDuration.getDuration() + timeToDistributePerPhase + "s");
+                    }
+                }
+            }
+
+            try {
+                // in case of SIGINT, the shutdownhook acquires the read lock in order to
+                // make the current phase not measurable, because the final results would have
+                // been printed twice: once in the shutdownhook and the second time here, a few
+                // lines below, so here the write lock is acquired in order to wait for the
+                // read lock previously-mentioned to be released
+                currentPhaseLock.writeLock().lock(); // THIS SHOULD BE CHANGED
+                phase.getRunMode().finishExecutionAndAwait();
+
+                // execute this block of code only if the current phase is not the last one
+                // and if it is measurable
+                if (i < phases.size() && currentPhase.getMeasurable()) {
+                    shutdownAndAwaitTermination(phase.getRunMode().getExecutorService());
+                    resultAggregator.aggregateResults();
+                    phase.getPublishMode().publishFinalResults(resultAggregator.filterResults());
+                }
+            } finally {
+                currentPhaseLock.writeLock().unlock();
+            }
         }
-    }
 
+        testsRunning = false;
+        shutdownHook.run();
+        Runtime.getRuntime().removeShutdownHook(shutdownHook);
+    }
 
     public ReentrantReadWriteLock getEngineSync() {
         return engineSync;
@@ -445,5 +503,13 @@ public class Engine {
             // Preserve interrupt status
             Thread.currentThread().interrupt();
         }
+    }
+
+    public Phase getCurrentPhase() {
+        return currentPhase;
+    }
+
+    public ReadWriteLock getCurrentPhaseLock() {
+        return currentPhaseLock;
     }
 }
