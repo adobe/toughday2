@@ -22,10 +22,6 @@ import org.junit.experimental.categories.Category;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-/**
- * Created by tuicu on 05/01/17.
- */
-
 @Category(TestTDConstraints.class)
 public class TestConfigGetAnnotatedMethod extends TestCase {
     private Method TdConfigAnnotatedMethod;
