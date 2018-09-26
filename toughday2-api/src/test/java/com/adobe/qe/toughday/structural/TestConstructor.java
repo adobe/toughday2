@@ -23,6 +23,10 @@ import org.junit.experimental.categories.Category;
 
 import java.lang.reflect.Constructor;
 
+/**
+ * Created by tuicu on 13/06/16.
+ */
+
 @Category(TestTDConstraints.class)
 public class TestConstructor extends TestCase {
     private Class TdClass;

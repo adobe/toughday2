@@ -16,6 +16,9 @@ import com.adobe.qe.toughday.api.core.RunMap;
 import java.util.Collection;
 import java.util.concurrent.ExecutorService;
 
+/**
+ * Created by tuicu on 15/03/17.
+ */
 public interface RunMode {
     void runTests(Engine engine) throws Exception;
     void finishExecutionAndAwait();
