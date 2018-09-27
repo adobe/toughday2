@@ -302,9 +302,12 @@ public class ConstantLoad implements RunMode {
                 MutableLong secondsLeft = new MutableLong(interval);
 
                 // if the rate was not specified and start and end were
-                if (rate == -1 && isVariableLoad()) {
+                if (isVariableLoad()) {
+                    if (rate == -1) {
+                        configureRateAndInterval(secondsLeft);
+                    }
+                    
                     currentLoad = start;
-                    configureRateAndInterval(secondsLeft);
                 }
 
                 while (!isFinished()) {

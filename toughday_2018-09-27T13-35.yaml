@@ -1,0 +1,10 @@
+globals:
+  host: localhost
+runmode:
+  rate: 10
+  start: 0
+  end: 50
+  interval: 1s
+  type: constantload
+tests:
+- add: CreateUserTest

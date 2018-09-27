@@ -1,0 +1,8 @@
+globals:
+  duration: 3s
+  host: localhost
+runmode:
+  type: normal
+  concurrency: 200
+tests:
+- add: CreateUserTest

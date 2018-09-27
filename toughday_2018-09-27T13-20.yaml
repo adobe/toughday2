@@ -1,0 +1,3 @@
+globals:
+  duration: 3s
+  host: localhost
