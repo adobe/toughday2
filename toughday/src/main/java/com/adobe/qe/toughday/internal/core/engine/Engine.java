@@ -404,13 +404,11 @@ public class Engine {
                 }
             }
 
-            try {
                 // in case of SIGINT, the shutdownhook acquires the read lock in order to
                 // make the current phase not measurable, because the final results would have
                 // been printed twice: once in the shutdownhook and the second time here, a few
                 // lines below, so here the write lock is acquired in order to wait for the
                 // read lock previously-mentioned to be released
-                currentPhaseLock.writeLock().lock(); // THIS SHOULD BE CHANGED
                 phase.getRunMode().finishExecutionAndAwait();
 
                 // execute this block of code only if the current phase is not the last one
@@ -420,9 +418,7 @@ public class Engine {
                     resultAggregator.aggregateResults();
                     phase.getPublishMode().publishFinalResults(resultAggregator.filterResults());
                 }
-            } finally {
-                currentPhaseLock.writeLock().unlock();
-            }
+
         }
 
         testsRunning = false;
