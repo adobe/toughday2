@@ -15,9 +15,6 @@ import com.adobe.qe.toughday.api.core.TestId;
 
 import java.util.UUID;
 
-/**
- * Created by tuicu on 18/10/17.
- */
 public class UUIDTestId extends TestId {
     private UUID id;
 

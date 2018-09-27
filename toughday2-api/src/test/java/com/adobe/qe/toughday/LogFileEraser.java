@@ -26,11 +26,9 @@ public class LogFileEraser {
     private LogFileEraser() {}
 
     public static void deteleFiles(org.apache.logging.log4j.core.config.Configuration config) {
-//        context.reconfigure();
         File folder = new File("logs_" + Timestamp.START_TIME);
 
         if (folder.exists()) {
-//            org.apache.logging.log4j.core.config.Configuration config = context.getConfiguration();
             if(config.getLoggerContext() != null) {
                 config.getLoggerContext().reconfigure();
             }

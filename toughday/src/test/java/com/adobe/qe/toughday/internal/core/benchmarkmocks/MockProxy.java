@@ -17,7 +17,6 @@ import com.adobe.qe.toughday.api.core.benchmark.Benchmark;
 import com.adobe.qe.toughday.api.core.benchmark.Proxy;
 import com.adobe.qe.toughday.api.core.benchmark.ResultInfo;
 import com.adobe.qe.toughday.api.core.benchmark.TestResult;
-import org.junit.Assert;
 
 import java.util.Map;
 
