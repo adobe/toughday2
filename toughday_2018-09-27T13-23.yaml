@@ -1,9 +1,0 @@
-globals:
-  duration: 10s
-  host: localhost
-runmode:
-  start: 0
-  end: 200
-  type: normal
-tests:
-- add: CreateUserTest
