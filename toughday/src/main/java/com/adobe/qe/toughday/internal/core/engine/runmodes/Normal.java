@@ -233,7 +233,6 @@ public class Normal implements RunMode {
     }
 
     private void rampDown() {
-        ((ThreadPoolExecutor)testsExecutorService).setKeepAliveTime(1, TimeUnit.SECONDS);
         // every 'interval' milliseconds, we'll stop 'rate' workers
         if (end < start) {
             ThreadPoolExecutor executor = (ThreadPoolExecutor)testsExecutorService;
