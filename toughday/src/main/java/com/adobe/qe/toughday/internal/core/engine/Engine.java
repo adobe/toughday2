@@ -342,6 +342,7 @@ public class Engine {
                 } catch (Throwable e) {
                     System.out.println("Exception in shutdown hook!");
                     e.printStackTrace();
+                } finally {
                     currentPhaseLock.readLock().unlock();
                 }
                 Engine.logGlobal("Test execution finished at: " + Engine.getCurrentDateTime());
