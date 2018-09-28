@@ -162,6 +162,7 @@ public class Normal implements RunMode {
         this.phase = engine.getCurrentPhase();
         TestSuite testSuite = phase.getTestSuite();
         testsExecutorService = Executors.newCachedThreadPool();
+        ((ThreadPoolExecutor)testsExecutorService).setKeepAliveTime(1, TimeUnit.SECONDS);
 
         // if no rate was provided, we'll create/remove one user at fixed rate,
         // namely every 'interval' milliseconds
@@ -233,7 +234,6 @@ public class Normal implements RunMode {
     }
 
     private void rampDown() {
-        ((ThreadPoolExecutor)testsExecutorService).setKeepAliveTime(1, TimeUnit.SECONDS);
         // every 'interval' milliseconds, we'll stop 'rate' workers
         if (end < start) {
             ThreadPoolExecutor executor = (ThreadPoolExecutor)testsExecutorService;
