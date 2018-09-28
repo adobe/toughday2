@@ -21,9 +21,6 @@ import org.yaml.snakeyaml.constructor.Constructor;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
-/**
- * Created by tuicu on 26/12/16.
- */
 public class YamlParser implements ConfigurationParser {
     public static final String CONFIG_FILE_ARG_NAME = "configfile";
     public static final String CONFIG_FILE_DESCRIPTION = "Config file in yaml format.";
