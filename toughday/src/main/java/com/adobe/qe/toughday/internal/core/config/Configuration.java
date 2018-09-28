@@ -272,6 +272,7 @@ public class Configuration {
             }
         }
 
+        // configure all the phases based on their params
         for (ConfigParams.PhaseParams phaseParams : configParams.getPhasesParams()) {
             defaultSuiteAddedFromConfigExclude = false;
             allTestsExcluded = false;
@@ -294,10 +295,12 @@ public class Configuration {
     }
 
     private Phase createPhase(ConfigParams configParams, ConfigParams.PhaseParams phaseParams, TestSuite suite, Map<String, Class> items) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        // if no run mode was provided in the phase, get the global one
         if (phaseParams.getRunmode().isEmpty()) {
             phaseParams.setRunmode(configParams.getRunModeParams());
         }
 
+        // if no publish mode was provided in the phase, get the global one
         if (phaseParams.getPublishmode().isEmpty()) {
             phaseParams.setPublishmode(configParams.getPublishModeParams());
         }
@@ -311,22 +314,30 @@ public class Configuration {
 
         RunMode runMode = getRunMode(new HashMap<>(phaseParams.getRunmode()));
         PublishMode publishMode = getPublishMode(new HashMap<>(phaseParams.getPublishmode()));
+
         Phase phase = createObject(Phase.class, phaseParams.getProperties());
         checkInvalidArgs(phaseParams.getProperties());
+
         phase.setTestSuite(suite);
         phase.setRunMode(runMode);
         phase.setPublishMode(publishMode);
 
+        // compute the minimum timeout of the phase
         phase.getTestSuite().setMinTimeout(globalArgs.getTimeout());
         for(AbstractTest test : phase.getTestSuite().getTests()) {
+            // set the count (the number of executions since the beginnin of the run) of each test to 0
             phase.getCounts().put(test, new AtomicLong(0));
+
+            // set the global args
             test.setGlobalArgs(globalArgs);
+
             items.put(test.getName(), test.getClass());
 
             if(test.getTimeout() < 0) {
                 continue;
             }
 
+            // update test suite minimum timeout
             phase.getTestSuite().setMinTimeout(Math.min(phase.getTestSuite().getMinTimeout(), test.getTimeout()));
         }
 
@@ -335,6 +346,7 @@ public class Configuration {
 
     private void getConfigurationFromAnotherPhase(ConfigParams.PhaseParams phaseParams) {
         String useconfig = null;
+        // if 'useconfig' is given as input
         if (phaseParams.getProperties().get("useconfig") != null) {
             useconfig = phaseParams.getProperties().get("useconfig").toString();
             if (!ConfigParams.PhaseParams.namedPhases.containsKey(useconfig)) {
@@ -346,6 +358,7 @@ public class Configuration {
                 name = phaseParams.getProperties().get("name").toString();
             }
 
+            // merge the current phase with the one whose name is the value of 'useconfig'
             if (name != null) {
                 phaseParams.merge(ConfigParams.PhaseParams.namedPhases.get(useconfig),
                         new HashSet<>(Arrays.asList(name, useconfig)));
@@ -375,6 +388,9 @@ public class Configuration {
 
     private void configureDurationForPhases() {
         long durationLeft = globalArgs.getDuration();
+
+        // subtract from durationLeft the duration of each phase
+        // if it was given as input
         for (Phase phase : phases) {
             if (phase.getDuration() == null) {
                 phasesWithoutDuration.add(phase);
@@ -387,8 +403,9 @@ public class Configuration {
             throw new IllegalArgumentException("The sum of the phase durations is greater than the global one.");
         }
 
+        // if there is at least one phase whose duration was not specified,
+        // share the duration left between them equally
         if (phasesWithoutDuration.size() != 0) {
-
             long durationPerPhase = durationLeft / phasesWithoutDuration.size();
             if (durationPerPhase < 1) {
                 throw new IllegalArgumentException("The duration left for the phases for which it is not specified is too small. Please make sure there is enough time left for those, as well.");

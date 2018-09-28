@@ -369,6 +369,7 @@ public class Engine {
             }
 
             phasesWithoutDuration.remove(phase);
+
             currentPhase.getPublishMode().getRunMap().reinitStartTimes();
 
             // Run the setup step of the suite
@@ -397,6 +398,9 @@ public class Engine {
                 LOG.info("Phase interrupted.");
                 long elapsed = System.currentTimeMillis() - start;
 
+                // if the phase finishes sooner than its duration,
+                // the remainder is split equally between the remaining phases
+                // whose duration was not given as input
                 if (!phasesWithoutDuration.isEmpty()) {
                 long timeToDistributePerPhase = (currentDuration - elapsed / 1000) / phasesWithoutDuration.size();
                     for (Phase phaseWithoutDuration : configuration.getPhasesWithoutDuration()) {
