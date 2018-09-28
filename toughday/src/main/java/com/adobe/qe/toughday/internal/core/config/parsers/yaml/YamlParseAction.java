@@ -17,9 +17,6 @@ import com.adobe.qe.toughday.internal.core.config.Actions;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Created by tuicu on 27/12/16.
- */
 public class YamlParseAction {
     private Actions action;
     private String identifier;

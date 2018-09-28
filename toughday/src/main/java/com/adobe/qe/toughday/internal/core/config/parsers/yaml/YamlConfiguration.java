@@ -17,9 +17,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Created by tuicu on 28/12/16.
- */
 public class YamlConfiguration {
 
     private ConfigParams configParams = new ConfigParams();
