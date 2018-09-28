@@ -215,13 +215,13 @@ public class CliParser implements ConfigurationParser {
         return new String[] {prop, val};
     }
 
-    private HashMap<String, Object> parseObjectProperties(int startIndex, String[] cmdLineArgs) {
-        HashMap<String, Object> args = new HashMap<>();
-        for (int j = startIndex; j < cmdLineArgs.length && !cmdLineArgs[j].startsWith("--"); j++) {
+    private int parseObjectProperties(int startIndex, String[] cmdLineArgs, HashMap<String, Object> args) {
+        int j;
+        for (j = startIndex; j < cmdLineArgs.length && !cmdLineArgs[j].startsWith("--"); j++) {
             parseAndAddProperty(cmdLineArgs[j], args);
         }
 
-        return args;
+        return j - startIndex;
     }
 
     /**
@@ -236,15 +236,18 @@ public class CliParser implements ConfigurationParser {
         // action parameters
         for (int i = 0; i < cmdLineArgs.length; i++) {
             if (cmdLineArgs[i].startsWith("--")) {
+                HashMap<String, Object> args = new HashMap<>();
+                int skip = 0;
+
                 String arg = cmdLineArgs[i].substring(2);
                 if (arg.equals("phase")) {
-                    HashMap<String, Object> args = parseObjectProperties(i + 1, cmdLineArgs);
+                    skip = parseObjectProperties(i + 1, cmdLineArgs, args);
                     configParams.createPhasewWithProperties(args);
                     configParams.setGlobalLevel(false);
                 } else if(Actions.isAction(arg)) {
                     Actions action = Actions.fromString(arg);
                     String identifier = cmdLineArgs[i + 1];
-                    HashMap<String, Object> args = parseObjectProperties(i + 2, cmdLineArgs);
+                    skip = parseObjectProperties(i + 2, cmdLineArgs, args) + 1;
 
                     // currently, only tests can be local to phases
                     // so, configParams will use testIdentifiers to check if it can add/config/exclude an item
@@ -261,17 +264,19 @@ public class CliParser implements ConfigurationParser {
                     }
                     action.apply(configParams, identifier, args);
                 } else if (arg.equals("publishmode")) {
-                    configParams.setPublishModeParams(parseObjectProperties(i + 1, cmdLineArgs));
+                    skip = parseObjectProperties(i + 1, cmdLineArgs, args);
+                    configParams.setPublishModeParams(args);
                 } else if (arg.equals("runmode")) {
-                    configParams.setRunModeParams(parseObjectProperties(i + 1, cmdLineArgs));
+                    skip = parseObjectProperties(i + 1, cmdLineArgs, args);
+                    configParams.setRunModeParams(args);
                 } else {
                     String[] res = parseProperty(arg);
                     String key = res[0];
                     Object val = getObjectFromString(res[1]);
                     // if global param does not exist
                     boolean found = false;
-                    for (Map<String, ConfigArgSet> args : availableGlobalArgs.values()) {
-                        if (args.containsKey(key)) {
+                    for (Map<String, ConfigArgSet> argz : availableGlobalArgs.values()) {
+                        if (argz.containsKey(key)) {
                             found = true;
                             break;
                         }
@@ -280,8 +285,13 @@ public class CliParser implements ConfigurationParser {
                             && !key.equals("suite")  && !key.equals("suitesetup")) {
                         throw new IllegalArgumentException("Unrecognized argument --" + key);
                    }
-                    globalArgs.put(key, val);
+
+                   globalArgs.put(key, val);
                 }
+
+                i += skip;
+            } else {
+                throw new IllegalArgumentException("Unrecognized argument " + cmdLineArgs[i]);
             }
         }
         configParams.setGlobalParams(globalArgs);

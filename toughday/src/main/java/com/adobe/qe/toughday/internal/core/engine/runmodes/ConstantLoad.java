@@ -306,7 +306,7 @@ public class ConstantLoad implements RunMode {
                     if (rate == -1) {
                         configureRateAndInterval(secondsLeft);
                     }
-                    
+
                     currentLoad = start;
                 }
 

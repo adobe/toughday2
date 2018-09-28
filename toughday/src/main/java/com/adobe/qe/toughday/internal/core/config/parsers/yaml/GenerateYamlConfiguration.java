@@ -38,7 +38,6 @@ public class GenerateYamlConfiguration {
     private List<YamlDumpAction> yamlExtensionActions;
     private List<YamlDumpAction> yamlTestActions;
     private List<YamlDumpPhase> yamlDumpPhases;
-    private boolean globalTests;
 
     private static final String DEFAULT_YAML_CONFIGURATION_FILENAME = "toughday_";
     private static final String DEFAULT_YAML_EXTENSION = ".yaml";
@@ -70,11 +69,7 @@ public class GenerateYamlConfiguration {
     }
 
     public List<YamlDumpAction> getTests() {
-        if (globalTests) {
-            return yamlTestActions;
-        }
-
-        return yamlDumpPhases.size() == 1? yamlDumpPhases.iterator().next().getTests() : yamlTestActions;
+        return yamlTestActions;
     }
 
     public List<YamlDumpAction> getPublishers() {
@@ -88,11 +83,11 @@ public class GenerateYamlConfiguration {
     public List<YamlDumpAction> getExtensions() { return yamlExtensionActions; }
 
     public List<YamlDumpPhase> getPhases() {
-        if (globalTests) {
-            return yamlDumpPhases;
+        if (configParams.getPhasesParams().isEmpty()) {
+            return new ArrayList<>();
         }
 
-        return yamlDumpPhases.size() != 1? yamlDumpPhases : new ArrayList<>();
+        return yamlDumpPhases;
     }
 
     // creates a list of actions for each item(tests, publishers, metrics, extensions)
@@ -100,14 +95,6 @@ public class GenerateYamlConfiguration {
 
         for (Map.Entry<Actions, ConfigParams.MetaObject> item : configParams.getItems()) {
             chooseAction(item, 0);
-
-            if (configParams.getTestIdentifiers().contains(item)) {
-                globalTests = true;
-            }
-        }
-
-        if (configParams.getPhasesParams().isEmpty()) {
-            globalTests = false;
         }
 
         List<ConfigParams.PhaseParams> phasesParams = configParams.getPhasesParams();

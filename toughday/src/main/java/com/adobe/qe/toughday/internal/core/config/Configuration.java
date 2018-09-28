@@ -14,7 +14,6 @@ package com.adobe.qe.toughday.internal.core.config;
 import com.adobe.qe.toughday.api.annotations.ConfigArgSet;
 import com.adobe.qe.toughday.api.core.AbstractTest;
 import com.adobe.qe.toughday.api.core.Publisher;
-import com.adobe.qe.toughday.api.core.RunMap;
 import com.adobe.qe.toughday.internal.core.Timestamp;
 import com.adobe.qe.toughday.internal.core.config.parsers.yaml.GenerateYamlConfiguration;
 import com.adobe.qe.toughday.internal.core.ReflectionsContainer;
@@ -43,10 +42,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.jar.JarEntry;
@@ -145,7 +141,7 @@ public class Configuration {
         List<URL> urls = new ArrayList<>();
         for (String filename : extensionsFileNames) {
             try {
-                urls.add(new URL("jar:file:" + filename + "!/"));
+                urls.add(new URL("file:" + Paths.get(filename).toAbsolutePath().toString()));
             } catch (MalformedURLException e) {
                 e.printStackTrace();
             }
@@ -499,6 +495,8 @@ public class Configuration {
         } else {
             throw new IllegalStateException("No test/publisher/metric found with name \"" + itemMeta.getName() + "\", so we can't configure it.");
         }
+
+        checkInvalidArgs(itemMeta.getParameters());
     }
 
     private void excludeItem(String itemName, TestSuite suite) {
@@ -689,18 +687,6 @@ public class Configuration {
             throw new IllegalStateException("The Run mode doesn't have a type");
         }
 
-        if (runModeParams.containsKey("type") && runModeParams.get("type").equals("normal")
-                && runModeParams.containsKey("load")) {
-            throw new IllegalStateException("Cannot configure load for Normal mode.");
-        }
-
-        if (runModeParams.containsKey("type") && runModeParams.get("type").equals("constantload")
-                && runModeParams.containsKey("concurrency")) {
-            throw new IllegalStateException("Cannot configure concurrency for Constant Load mode");
-        }
-
-        // check that all numeric values are positive
-
         String type = runModeParams.size() != 0 ? String.valueOf(runModeParams.get("type")) : DEFAULT_RUN_MODE;
         Class<? extends RunMode> runModeClass = ReflectionsContainer.getInstance().getRunModeClasses().get(type);
 
@@ -711,6 +697,7 @@ public class Configuration {
         runModeParams.remove("type");
 
         RunMode runMode = createObject(runModeClass, runModeParams);
+        checkInvalidArgs(runModeParams);
 
         return runMode;
     }
@@ -728,7 +715,12 @@ public class Configuration {
             throw new IllegalStateException("A publish mode with type \"" + type + "\" does not exist");
         }
 
-        return createObject(publishModeClass, publishModeParams);
+        publishModeParams.remove("type");
+
+        PublishMode publishMode = createObject(publishModeClass, publishModeParams);
+        checkInvalidArgs(publishModeParams);
+
+        return publishMode;
     }
 
     private void applyLogLevel(Level level) {
