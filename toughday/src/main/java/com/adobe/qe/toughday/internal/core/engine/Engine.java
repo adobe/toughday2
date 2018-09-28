@@ -361,10 +361,10 @@ public class Engine {
             testsRunning = true;
 
             try {
-                currentPhaseLock.readLock().lock();
+                currentPhaseLock.writeLock().lock();
                 currentPhase = phase;
             } finally {
-                currentPhaseLock.readLock().unlock();
+                currentPhaseLock.writeLock().unlock();
             }
 
             phasesWithoutDuration.remove(phase);
