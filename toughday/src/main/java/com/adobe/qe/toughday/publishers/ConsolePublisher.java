@@ -185,6 +185,7 @@ public class ConsolePublisher extends Publisher {
 
         this.begun = false;
         this.clearScreen = true;
+        this.asterisks = null;
     }
 
     @Override

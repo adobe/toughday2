@@ -35,9 +35,9 @@ public class Phase {
     private TestSuite testSuite;
     private RunMode runMode;
     private PublishMode publishMode;
-    private Map<AbstractTest, AtomicLong> counts = new HashMap<>();
     private Map<String, Publisher> publishers = new HashMap<>();
     private Map<String, Metric> metrics = new LinkedHashMap<>();
+    private Map<AbstractTest, AtomicLong> counts = new HashMap<>();
 
     @ConfigArgGet
     public String getName() {
@@ -82,28 +82,29 @@ public class Phase {
         }
     }
 
-    public TestSuite getTestSuite() {
-        return testSuite;
-    }
-
-    public RunMode getRunMode() {
-        return runMode;
-    }
-
-    public PublishMode getPublishMode() {
-        return publishMode;
-    }
 
     public Map<AbstractTest, AtomicLong> getCounts() {
         return counts;
+    }
+
+    public TestSuite getTestSuite() {
+        return testSuite;
     }
 
     public void setTestSuite(TestSuite testSuite) {
         this.testSuite = testSuite;
     }
 
+    public RunMode getRunMode() {
+        return runMode;
+    }
+
     public void setRunMode(RunMode runMode) {
         this.runMode = runMode;
+    }
+
+    public PublishMode getPublishMode() {
+        return publishMode;
     }
 
     public void setPublishMode(PublishMode publishMode) {
