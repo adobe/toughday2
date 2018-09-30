@@ -30,7 +30,6 @@ public class ConfigParams implements Serializable {
     private Map<String, Object> runModeParams = new HashMap<>();
     private List<Map.Entry<Actions, MetaObject>> items = new ArrayList<>();
 
-    private Set<String> testIdentifiers = new HashSet<>();
     private boolean globalLevel = true;
 
     public static class MetaObject  implements Serializable {
@@ -76,7 +75,7 @@ public class ConfigParams implements Serializable {
         private Map<String, Object> properties = new HashMap<>();
         private Map<String, Object> runmode = new HashMap<>();
         private Map<String, Object> publishmode = new HashMap<>();
-        private List<Map.Entry<Actions, MetaObject>> tests = new ArrayList<>();
+        private List<Map.Entry<Actions, MetaObject>> items = new ArrayList<>();
 
         public Map<String, Object> getProperties() {
             return properties;
@@ -94,12 +93,12 @@ public class ConfigParams implements Serializable {
             this.runmode = runmode;
         }
 
-        public List<Map.Entry<Actions, MetaObject>> getTests() {
-            return tests;
+        public List<Map.Entry<Actions, MetaObject>> getItems() {
+            return items;
         }
 
-        public void setTests(List<Map.Entry<Actions, MetaObject>> tests) {
-            this.tests = tests;
+        public void setItems(List<Map.Entry<Actions, MetaObject>> tests) {
+            this.items = tests;
         }
 
         public Map<String, Object> getPublishmode() {
@@ -156,10 +155,10 @@ public class ConfigParams implements Serializable {
             }
 
 
-            List<Map.Entry<Actions, MetaObject>> tests = deepClone(phaseParams.tests);
-            tests.addAll(this.tests);
+            List<Map.Entry<Actions, MetaObject>> tests = deepClone(phaseParams.items);
+            tests.addAll(this.items);
 
-            this.tests = tests;
+            this.items = tests;
         }
     }
 
@@ -235,8 +234,8 @@ public class ConfigParams implements Serializable {
     }
 
     private void addToItemsOrLastPhase(Map.Entry<Actions, MetaObject> newEntry, String identifier) {
-        if (testIdentifiers.contains(identifier) && !globalLevel) {
-            phasesParams.get(phasesParams.size() - 1).getTests().add(newEntry);
+        if (!globalLevel) {
+            phasesParams.get(phasesParams.size() - 1).getItems().add(newEntry);
         } else {
             items.add(newEntry);
         }
@@ -270,10 +269,6 @@ public class ConfigParams implements Serializable {
 
     public List<Map.Entry<Actions, MetaObject>> getItems() {
         return items;
-    }
-
-    public Set<String> getTestIdentifiers() {
-        return testIdentifiers;
     }
 
     public boolean isGlobalLevel() {

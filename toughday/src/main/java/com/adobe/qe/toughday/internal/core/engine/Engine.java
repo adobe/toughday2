@@ -176,16 +176,6 @@ public class Engine {
         out.println("Global configuration:");
         printObject(out, configuration.getGlobalArgs());
 
-        out.println("Publishers:");
-        for (Publisher publisher : configuration.getGlobalArgs().getPublishers()) {
-            printObject(out, publisher);
-        }
-
-        out.println("Metrics:");
-        for (Metric metric : configuration.getGlobalArgs().getMetrics()) {
-            printObject(out, metric);
-        }
-
         int i = 1;
         for (Phase phase : configuration.getPhases()) {
             out.println("######################## Phase " + i + " ########################");
@@ -203,6 +193,16 @@ public class Engine {
             out.println("Tests:");
             for (AbstractTest test : phase.getTestSuite().getTests()) {
                 printObject(out, test);
+            }
+
+            out.println("Publishers:");
+            for (Publisher publisher : phase.getPublishers()) {
+                printObject(out, publisher);
+            }
+
+            out.println("Metrics:");
+            for (Metric metric : phase.getMetrics()) {
+                printObject(out, metric);
             }
 
             out.println("#########################################################");

@@ -8,6 +8,8 @@ public class YamlParsePhase {
     private Boolean measurable;
     private String useconfig;
     private List<YamlParseAction> tests;
+    private List<YamlParseAction> metrics;
+    private List<YamlParseAction> publishers;
     private Map<String, Object> runmode;
     private Map<String, Object> publishmode;
 
@@ -57,5 +59,21 @@ public class YamlParsePhase {
 
     public void setPublishmode(Map<String, Object> publishmode) {
         this.publishmode = publishmode;
+    }
+
+    public List<YamlParseAction> getMetrics() {
+        return metrics;
+    }
+
+    public void setMetrics(List<YamlParseAction> metrics) {
+        this.metrics = metrics;
+    }
+
+    public List<YamlParseAction> getPublishers() {
+        return publishers;
+    }
+
+    public void setPublishers(List<YamlParseAction> publishers) {
+        this.publishers = publishers;
     }
 }

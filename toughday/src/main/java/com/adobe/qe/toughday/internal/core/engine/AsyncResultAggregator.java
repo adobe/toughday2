@@ -61,7 +61,7 @@ public class AsyncResultAggregator extends AsyncEngineWorker {
         Collection<AbstractTest> tests = runMap.getTests();
         for (AbstractTest testInstance : tests) {
             List<MetricResult> metricResults = new ArrayList<>();
-            for (Metric metric : engine.getGlobalArgs().getMetrics()) {
+            for (Metric metric : engine.getCurrentPhase().getMetrics()) {
                 metricResults.add(metric.getResult(runMap.getRecord(testInstance)));
             }
             results.put(testInstance.getFullName(), metricResults);
@@ -120,8 +120,13 @@ public class AsyncResultAggregator extends AsyncEngineWorker {
     }
 
     private void stopPublishers() {
-        for(Publisher publisher : engine.getGlobalArgs().getPublishers()) {
-            publisher.finish();
+        try {
+            engine.getCurrentPhaseLock().readLock().lock();
+            for(Publisher publisher : engine.getCurrentPhase().getPublishers()) {
+                publisher.finish();
+            }
+        } finally {
+            engine.getCurrentPhaseLock().readLock().unlock();
         }
     }
 }

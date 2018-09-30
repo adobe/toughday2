@@ -86,6 +86,14 @@ public class YamlConfiguration {
             if (yamlParsePhase.getTests() != null) {
                 setTests(yamlParsePhase.getTests());
             }
+
+            if (yamlParsePhase.getMetrics() != null) {
+                setMetrics(yamlParsePhase.getMetrics());
+            }
+
+            if (yamlParsePhase.getPublishers() != null) {
+                setPublishers(yamlParsePhase.getPublishers());
+            }
         }
         configParams.setGlobalLevel(true);
     }

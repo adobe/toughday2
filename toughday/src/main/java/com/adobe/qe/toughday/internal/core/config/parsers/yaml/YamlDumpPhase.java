@@ -9,6 +9,8 @@ public class YamlDumpPhase {
     private Boolean measurable;
     private String useconfig;
     private List<YamlDumpAction> tests = new ArrayList<>();
+    private List<YamlDumpAction> metrics = new ArrayList<>();
+    private List<YamlDumpAction> publishers = new ArrayList<>();
     private Map<String, Object> runmode;
     private Map<String, Object> publishmode;
 
@@ -67,5 +69,21 @@ public class YamlDumpPhase {
 
     public void setPublishmode(Map<String, Object> publishmode) {
         this.publishmode = publishmode;
+    }
+
+    public List<YamlDumpAction> getMetrics() {
+        return metrics;
+    }
+
+    public void setMetrics(List<YamlDumpAction> metrics) {
+        this.metrics = metrics;
+    }
+
+    public List<YamlDumpAction> getPublishers() {
+        return publishers;
+    }
+
+    public void setPublishers(List<YamlDumpAction> publishers) {
+        this.publishers = publishers;
     }
 }

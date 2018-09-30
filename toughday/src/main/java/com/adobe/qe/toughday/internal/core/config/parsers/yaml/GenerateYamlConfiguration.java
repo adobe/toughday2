@@ -103,7 +103,7 @@ public class GenerateYamlConfiguration {
             YamlDumpPhase yamlDumpPhase = new YamlDumpPhase(phaseParams.getProperties(), phaseParams.getRunmode(), phaseParams.getPublishmode());
             yamlDumpPhases.add(yamlDumpPhase);
 
-            for (Map.Entry<Actions, ConfigParams.MetaObject> item : phasesParams.get(i).getTests()) {
+            for (Map.Entry<Actions, ConfigParams.MetaObject> item : phasesParams.get(i).getItems()) {
                 chooseAction(item, i + 1);
             }
         }
@@ -133,10 +133,20 @@ public class GenerateYamlConfiguration {
 
             yamlDumpPhases.get(index - 1).getTests().add(addAction);
         } else if (ReflectionsContainer.getInstance().isPublisherClass(item.getClassName())) {
-            yamlPublisherActions.add(addAction);
+            if (index == 0) {
+                yamlPublisherActions.add(addAction);
+                return;
+            }
+
+            yamlDumpPhases.get(index - 1).getPublishers().add(addAction);
         } else if (ReflectionsContainer.getInstance().isMetricClass(item.getClassName())
                 || item.getClassName().equals("BASICMetrics") || item.getClassName().equals("DEFAULTMetrics")){
-            yamlMetricActions.add(addAction);
+            if (index == 0) {
+                yamlMetricActions.add(addAction);
+                return;
+            }
+
+            yamlDumpPhases.get(index - 1).getMetrics().add(addAction);
         } else if (item.getClassName().endsWith(".jar")) {
             yamlExtensionActions.add(addAction);
         }

@@ -248,20 +248,6 @@ public class CliParser implements ConfigurationParser {
                     Actions action = Actions.fromString(arg);
                     String identifier = cmdLineArgs[i + 1];
                     skip = parseObjectProperties(i + 2, cmdLineArgs, args) + 1;
-
-                    // currently, only tests can be local to phases
-                    // so, configParams will use testIdentifiers to check if it can add/config/exclude an item
-                    Set<String> testIdentifiers = configParams.getTestIdentifiers();
-                    if (ReflectionsContainer.getInstance().isTestClass(identifier)) {
-                        testIdentifiers.add(identifier);
-                        if (args.containsKey("name")) {
-                            testIdentifiers.add(args.get("name").toString());
-                        }
-                    } else if (testIdentifiers.contains(identifier)) {
-                        if (args.containsKey("name")) {
-                            testIdentifiers.add(args.get("name").toString());
-                        }
-                    }
                     action.apply(configParams, identifier, args);
                 } else if (arg.equals("publishmode")) {
                     skip = parseObjectProperties(i + 1, cmdLineArgs, args);

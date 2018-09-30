@@ -246,7 +246,7 @@ public class TestConfiguration {
         cmdLineArgs.addAll(Arrays.asList("--host=localhost --add BASICMetrics --exclude Failed".split(" ")));
         Configuration configuration = new Configuration(cmdLineArgs.toArray(new String[0]));
 
-        Assert.assertEquals(configuration.getGlobalArgs().getMetrics().size(), 4);
+        Assert.assertEquals(configuration.getPhases().get(0).getMetrics().size(), 4);
     }
 
     @Test
