@@ -38,6 +38,8 @@ public class Phase {
     private Map<String, Publisher> publishers = new HashMap<>();
     private Map<String, Metric> metrics = new LinkedHashMap<>();
     private Map<AbstractTest, AtomicLong> counts = new HashMap<>();
+    private Map<String, Publisher> publishers = new HashMap<>();
+    private Map<String, Metric> metrics = new LinkedHashMap<>();
 
     @ConfigArgGet
     public String getName() {
@@ -109,6 +111,31 @@ public class Phase {
 
     public void setPublishMode(PublishMode publishMode) {
         this.publishMode = publishMode;
+    }
+
+    public Collection<Publisher> getPublishers() {
+        return publishers.values();
+    }
+
+    public void setPublishers(Map<String, Publisher> publishers) {
+        this.publishers = publishers;
+    }
+
+    public Collection<Metric> getMetrics() {
+
+        List<Metric> requiredMetrics = new ArrayList<>();
+
+        //add mandatory metrics
+        requiredMetrics.add(new Name());
+        requiredMetrics.add(new Timestamp());
+
+        requiredMetrics.addAll(metrics.values());
+
+        return requiredMetrics;
+    }
+
+    public void setMetrics(Map<String, Metric> metrics) {
+        this.metrics = metrics;
     }
 
     public Collection<Publisher> getPublishers() {
