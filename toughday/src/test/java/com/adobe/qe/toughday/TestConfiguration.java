@@ -16,6 +16,7 @@ import com.adobe.qe.toughday.internal.core.TestSuite;
 import com.adobe.qe.toughday.internal.core.Timestamp;
 import com.adobe.qe.toughday.internal.core.config.ConfigParams;
 import com.adobe.qe.toughday.internal.core.config.Configuration;
+import com.adobe.qe.toughday.internal.core.config.PhaseParams;
 import com.adobe.qe.toughday.internal.core.engine.Phase;
 import com.adobe.qe.toughday.internal.core.engine.publishmodes.Intervals;
 import com.adobe.qe.toughday.internal.core.engine.publishmodes.Simple;
@@ -524,7 +525,7 @@ public class TestConfiguration {
 
     @After
     public void after() {
-        ConfigParams.PhaseParams.namedPhases.clear();
+        PhaseParams.namedPhases.clear();
     }
 
     @AfterClass

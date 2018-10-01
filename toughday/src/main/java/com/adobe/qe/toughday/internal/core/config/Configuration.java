@@ -235,7 +235,7 @@ public class Configuration {
 
         // if there were no phases configured, create a phase that has the global configuration
         if (configParams.getPhasesParams().isEmpty()) {
-            Phase phase = createPhase(configParams, new ConfigParams.PhaseParams(), globalSuite, globalPublishers, globalMetrics, items);
+            Phase phase = createPhase(configParams, new PhaseParams(), globalSuite, globalPublishers, globalMetrics, items);
             phases.add(phase);
             configureDurationForPhases();
 
@@ -243,18 +243,18 @@ public class Configuration {
         }
 
         // map names to phases to keep track of them
-        for (ConfigParams.PhaseParams phaseParams : configParams.getPhasesParams()) {
+        for (PhaseParams phaseParams : configParams.getPhasesParams()) {
             if (phaseParams.getProperties().get("name") != null) {
-                if (ConfigParams.PhaseParams.namedPhases.containsKey(phaseParams.getProperties().get("name").toString())) {
+                if (PhaseParams.namedPhases.containsKey(phaseParams.getProperties().get("name").toString())) {
                     throw new IllegalArgumentException("There is already a phase named \"" + phaseParams.getProperties().get("name") + "\".");
                 }
 
-                ConfigParams.PhaseParams.namedPhases.put(phaseParams.getProperties().get("name").toString(), phaseParams);
+                PhaseParams.namedPhases.put(phaseParams.getProperties().get("name").toString(), phaseParams);
             }
         }
 
         // configure all the phases based on their params
-        for (ConfigParams.PhaseParams phaseParams : configParams.getPhasesParams()) {
+        for (PhaseParams phaseParams : configParams.getPhasesParams()) {
             defaultSuiteAddedFromConfigExclude = false;
             allTestsExcluded = false;
             anyMetricAdded = false;
@@ -280,7 +280,7 @@ public class Configuration {
         configureDurationForPhases();
     }
 
-    private Phase createPhase(ConfigParams configParams, ConfigParams.PhaseParams phaseParams, TestSuite suite, Map<String, Publisher> publishers,
+    private Phase createPhase(ConfigParams configParams, PhaseParams phaseParams, TestSuite suite, Map<String, Publisher> publishers,
                               Map<String, Metric> metrics, Map<String, Class> items) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
         // if no run mode was provided in the phase, get the global one
         if (phaseParams.getRunmode().isEmpty()) {
@@ -355,28 +355,21 @@ public class Configuration {
         return phase;
     }
 
-    private void getConfigurationFromAnotherPhase(ConfigParams.PhaseParams phaseParams) {
+    private void getConfigurationFromAnotherPhase(PhaseParams phaseParams) {
         String useconfig = null;
         // if 'useconfig' is given as input
         if (phaseParams.getProperties().get("useconfig") != null) {
             useconfig = phaseParams.getProperties().get("useconfig").toString();
-            if (!ConfigParams.PhaseParams.namedPhases.containsKey(useconfig)) {
+            if (!PhaseParams.namedPhases.containsKey(useconfig)) {
                 throw new IllegalArgumentException("Could not find phase named \"" + useconfig + "\".");
             }
 
-            String name = null;
-            if (phaseParams.getProperties().get("name") != null) {
-                name = phaseParams.getProperties().get("name").toString();
-            }
+            String name = phaseParams.getProperties().get("name").toString();
 
             // merge the current phase with the one whose name is the value of 'useconfig'
-            if (name != null) {
-                phaseParams.merge(ConfigParams.PhaseParams.namedPhases.get(useconfig),
+            phaseParams.merge(PhaseParams.namedPhases.get(useconfig),
                         new HashSet<>(Arrays.asList(name, useconfig)));
-            } else {
-                phaseParams.merge(ConfigParams.PhaseParams.namedPhases.get(useconfig),
-                        new HashSet<>(Collections.singletonList(useconfig)));
-            }
+
         }
     }
 
@@ -439,14 +432,12 @@ public class Configuration {
             AbstractTest test = createObject(ReflectionsContainer.getInstance().getTestClass(itemToAdd.getClassName()), itemToAdd.getParameters());
             suite.add(test);
             items.put(test.getName(), test.getClass());
-            checkInvalidArgs(itemToAdd.getParameters());
         } else if (ReflectionsContainer.getInstance().isPublisherClass(itemToAdd.getClassName())) {
             Publisher publisher = createObject(
                     ReflectionsContainer.getInstance().getPublisherClass(itemToAdd.getClassName()),
                     itemToAdd.getParameters());
             items.put(publisher.getName(), publisher.getClass());
 
-            checkInvalidArgs(itemToAdd.getParameters());
             if (publishers.containsKey(publisher.getName())) {
                 throw new IllegalStateException("There is already a publisher named \"" + publisher.getName() + "\"." +
                         "Please provide a different name using the \"name\" property.");
@@ -458,7 +449,6 @@ public class Configuration {
                     itemToAdd.getParameters());
             items.put(metric.getName(), metric.getClass());
 
-            checkInvalidArgs(itemToAdd.getParameters());
             if (metrics.containsKey(metric.getName())) {
                 LOGGER.warn("A metric with this name was already added. Only the last one is taken into consideration.");
             }
@@ -488,6 +478,8 @@ public class Configuration {
         } else {
             throw new IllegalArgumentException("Unknown publisher, test or metric class: " + itemToAdd.getClassName());
         }
+
+        checkInvalidArgs(itemToAdd.getParameters());
     }
 
     private void configItem(ConfigParams.NamedMetaObject itemMeta, Map<String, Class> items, TestSuite suite,

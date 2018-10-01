@@ -14,6 +14,7 @@ package com.adobe.qe.toughday.internal.core;
 import com.adobe.qe.toughday.LogFileEraser;
 import com.adobe.qe.toughday.internal.core.config.Actions;
 import com.adobe.qe.toughday.internal.core.config.ConfigParams;
+import com.adobe.qe.toughday.internal.core.config.PhaseParams;
 import com.adobe.qe.toughday.internal.core.config.parsers.cli.CliParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -161,7 +162,7 @@ public class CliParserTest {
         cmdLineArgs.addAll(Arrays.asList(("--host=localhost --timeout=1 --phase name=first useconfig=third measurable=false " +
                 "--phase duration=10s --duration=1d --phase name=third measurable=true").split(" ")));
         ConfigParams configParams = cliParser.parse(cmdLineArgs.toArray(new String[0]));
-        List<ConfigParams.PhaseParams> phaseParams = configParams.getPhasesParams();
+        List<PhaseParams> phaseParams = configParams.getPhasesParams();
 
         Assert.assertEquals(phaseParams.get(0).getProperties().get("name"), "first");
         Assert.assertEquals(phaseParams.get(0).getProperties().get("useconfig"), "third");

@@ -16,6 +16,7 @@ import com.adobe.qe.toughday.internal.core.ReflectionsContainer;
 import com.adobe.qe.toughday.internal.core.config.Actions;
 import com.adobe.qe.toughday.internal.core.Timestamp;
 import com.adobe.qe.toughday.internal.core.config.ConfigParams;
+import com.adobe.qe.toughday.internal.core.config.PhaseParams;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.introspector.Property;
@@ -97,9 +98,9 @@ public class GenerateYamlConfiguration {
             chooseAction(item, 0);
         }
 
-        List<ConfigParams.PhaseParams> phasesParams = configParams.getPhasesParams();
+        List<PhaseParams> phasesParams = configParams.getPhasesParams();
         for (int i = 0; i < phasesParams.size(); ++i) {
-            ConfigParams.PhaseParams phaseParams = phasesParams.get(i);
+            PhaseParams phaseParams = phasesParams.get(i);
             YamlDumpPhase yamlDumpPhase = new YamlDumpPhase(phaseParams.getProperties(), phaseParams.getRunmode(), phaseParams.getPublishmode());
             yamlDumpPhases.add(yamlDumpPhase);
 

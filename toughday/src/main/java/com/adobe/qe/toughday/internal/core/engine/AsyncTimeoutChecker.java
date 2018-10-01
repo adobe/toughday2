@@ -69,13 +69,7 @@ public class AsyncTimeoutChecker extends AsyncEngineWorker {
     public void run() {
         try {
             while(!isFinished()) {
-                long minTimeout = engine.getGlobalArgs().getTimeout();
-                try {
-                    engine.getCurrentPhaseLock().readLock().lock();
-                    minTimeout = engine.getCurrentPhase().getTestSuite().getMinTimeout();
-                } finally {
-                    engine.getCurrentPhaseLock().readLock().unlock();
-                }
+                long minTimeout = engine.getCurrentPhase().getTestSuite().getMinTimeout();
 
                 try {
                     Thread.sleep(Math.round(Math.ceil(minTimeout * Engine.TIMEOUT_CHECK_FACTOR)));
