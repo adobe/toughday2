@@ -1,8 +1,0 @@
-globals:
-  duration: 10s
-  host: localhost
-phases:
-- tests:
-  - add: CreateUserTest
-- tests:
-  - add: CreatePageTreeTest
