@@ -208,7 +208,13 @@ public class ConfigParams implements Serializable {
     public void createPhasewWithProperties(Map<String, Object> properties) {
         PhaseParams phase = new PhaseParams();
         phase.setProperties(properties);
+
+        if (!properties.containsKey("name")) {
+            properties.put("name", "phase" + (phasesParams.size() + 1));
+        }
+
         phasesParams.add(phase);
+
     }
 
     public void addItem(String itemName, Map<String, Object> params) {

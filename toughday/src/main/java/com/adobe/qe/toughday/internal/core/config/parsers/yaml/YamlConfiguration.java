@@ -13,7 +13,6 @@ package com.adobe.qe.toughday.internal.core.config.parsers.yaml;
 
 import com.adobe.qe.toughday.internal.core.config.ConfigParams;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
@@ -59,10 +58,13 @@ public class YamlConfiguration {
 
     public void setPhases(List<YamlParsePhase> phases) {
         configParams.setGlobalLevel(false);
+        int i = 1;
         for (YamlParsePhase yamlParsePhase : phases) {
             ConfigParams.PhaseParams phase = new ConfigParams.PhaseParams();
             if (yamlParsePhase.getName() != null) {
                 phase.getProperties().put("name", yamlParsePhase.getName());
+            } else {
+                phase.getProperties().put("name", "phase" + i);
             }
 
             if (yamlParsePhase.getMeasurable() != null) {
@@ -71,6 +73,10 @@ public class YamlConfiguration {
 
             if (yamlParsePhase.getUseconfig() != null) {
                 phase.getProperties().put("useconfig", yamlParsePhase.getUseconfig());
+            }
+
+            if (yamlParsePhase.getDuration() != null) {
+                phase.getProperties().put("duration", yamlParsePhase.getDuration());
             }
 
             configParams.getPhasesParams().add(phase);
@@ -94,6 +100,8 @@ public class YamlConfiguration {
             if (yamlParsePhase.getPublishers() != null) {
                 setPublishers(yamlParsePhase.getPublishers());
             }
+
+            ++i;
         }
         configParams.setGlobalLevel(true);
     }

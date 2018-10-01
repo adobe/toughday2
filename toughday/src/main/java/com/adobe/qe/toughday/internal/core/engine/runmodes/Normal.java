@@ -62,7 +62,7 @@ public class Normal implements RunMode {
         return concurrency;
     }
 
-    @ConfigArgSet(required = false, desc = "The number of concurrent threads that Tough Day will use",
+    @ConfigArgSet(required = false, desc = "The number of concurrent threads that Tough Day will use.",
             defaultValue = DEFAULT_CONCURRENCY_STRING, order = 5)
     public void setConcurrency(String concurrencyString) {
         checkNotNegative(Long.parseLong(concurrencyString), "concurrency");
@@ -74,7 +74,7 @@ public class Normal implements RunMode {
         return waitTime;
     }
 
-    @ConfigArgSet(required = false, desc = "The wait time between two consecutive test runs for a specific thread. Expressed in milliseconds",
+    @ConfigArgSet(required = false, desc = "The wait time between two consecutive test runs for a specific thread. Expressed in milliseconds.",
             defaultValue = DEFAULT_WAIT_TIME_STRING, order = 7)
     public void setWaitTime(String waitTime) {
         checkNotNegative(Long.parseLong(waitTime), "waittime");
@@ -166,11 +166,10 @@ public class Normal implements RunMode {
 
         // if no rate was provided, we'll create/remove one user at fixed rate,
         // namely every 'interval' milliseconds
-        // we'll also create all the workers from the beginning
         if (isVariableConcurrency()) {  // if start and end were provided
             if (rate == -1) {
                 interval = (long)Math.floor(1000.0 * (phase.getDuration() - EPS)
-                        / (start < end? end - start : start - end));  // to replace with phase duration
+                        / (start < end? end - start : start - end));
                 rate = 1;
             }
 
@@ -178,7 +177,7 @@ public class Normal implements RunMode {
         }
 
         // Execute the test worker threads
-        // if start was provided, then it will create 'start' (whose value is
+        // if start was provided, then it will create 'start' (whose value was
         // assigned to 'concurrency') workers to begin with
         // otherwise, it will create 'concurrency' workers
         for (int i = 0; i < concurrency; i++) {

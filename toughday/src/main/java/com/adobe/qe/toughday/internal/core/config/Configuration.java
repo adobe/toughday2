@@ -342,7 +342,7 @@ public class Configuration {
 
         // Add default metrics if no metric is specified.
         // TODO add better fix here?
-        if (!anyMetricAdded && publishers.isEmpty()) {
+        if (!anyMetricAdded && metrics.isEmpty()) {
             Collection<Metric> defaultMetrics = Metric.defaultMetrics;
             for (Metric metric : defaultMetrics) {
                 metrics.put(metric.getName(), metric);

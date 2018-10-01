@@ -323,7 +323,6 @@ public class ConstantLoad implements RunMode {
                     rampDown(secondsLeft);
                 }
             } catch (InterruptedException e) {
-                System.out.println("altcv");
                 finishExecution();
                 LOG.warn("Constant load scheduler thread was interrupted.");
             }

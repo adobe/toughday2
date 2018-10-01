@@ -19,6 +19,7 @@ public class YamlDumpPhase {
     private String name;
     private Boolean measurable;
     private String useconfig;
+    private String duration;
     private List<YamlDumpAction> tests = new ArrayList<>();
     private List<YamlDumpAction> metrics = new ArrayList<>();
     private List<YamlDumpAction> publishers = new ArrayList<>();
@@ -29,6 +30,7 @@ public class YamlDumpPhase {
         this.name = properties.containsKey("name") ? properties.get("name").toString() : null;
         this.measurable = properties.containsKey("measurable") ? (Boolean)(properties.get("measurable")) : null;
         this.useconfig = properties.containsKey("useconfig") ? properties.get("useconfig").toString() : null;
+        this.duration = properties.containsKey("duration") ? properties.get("duration").toString() : null;
         this.runmode = runmode;
         this.publishmode = publishmode;
     }
@@ -96,5 +98,13 @@ public class YamlDumpPhase {
 
     public void setPublishers(List<YamlDumpAction> publishers) {
         this.publishers = publishers;
+    }
+
+    public String getDuration() {
+        return duration;
+    }
+
+    public void setDuration(String duration) {
+        this.duration = duration;
     }
 }
