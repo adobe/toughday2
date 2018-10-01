@@ -154,7 +154,6 @@ public class ConfigParams implements Serializable {
                 this.runmode = phaseParams.runmode;
             }
 
-
             List<Map.Entry<Actions, MetaObject>> tests = deepClone(phaseParams.items);
             tests.addAll(this.items);
 
@@ -216,24 +215,24 @@ public class ConfigParams implements Serializable {
         Map.Entry<Actions, MetaObject> newEntry = new AbstractMap.SimpleEntry<>(Actions.ADD,
                 new ClassMetaObject(itemName, params));
 
-        addToItemsOrLastPhase(newEntry, itemName);
+        addToItemsOrLastPhase(newEntry);
     }
 
     public void configItem(String itemName, Map<String, Object> params) {
         Map.Entry<Actions, MetaObject> newEntry = new AbstractMap.SimpleEntry<>(Actions.CONFIG,
                 new NamedMetaObject(itemName, params));
 
-        addToItemsOrLastPhase(newEntry, itemName);
+        addToItemsOrLastPhase(newEntry);
     }
 
     public void excludeItem(String itemName) {
         Map.Entry<Actions, MetaObject> newEntry = new AbstractMap.SimpleEntry<>(Actions.EXCLUDE,
                 new NamedMetaObject(itemName, null));
 
-        addToItemsOrLastPhase(newEntry, itemName);
+        addToItemsOrLastPhase(newEntry);
     }
 
-    private void addToItemsOrLastPhase(Map.Entry<Actions, MetaObject> newEntry, String identifier) {
+    private void addToItemsOrLastPhase(Map.Entry<Actions, MetaObject> newEntry) {
         if (!globalLevel) {
             phasesParams.get(phasesParams.size() - 1).getItems().add(newEntry);
         } else {
