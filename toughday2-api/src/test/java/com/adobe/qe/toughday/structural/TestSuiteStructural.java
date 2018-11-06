@@ -12,10 +12,15 @@ governing permissions and limitations under the License.
 package com.adobe.qe.toughday.structural;
 
 import com.adobe.qe.toughday.LogFileEraser;
+import com.adobe.qe.toughday.api.annotations.Internal;
+import com.adobe.qe.toughday.api.annotations.feeders.FeederGet;
+import com.adobe.qe.toughday.api.annotations.feeders.FeederSet;
 import com.adobe.qe.toughday.api.core.AbstractTest;
 import com.adobe.qe.toughday.api.core.Publisher;
 import com.adobe.qe.toughday.api.annotations.ConfigArgGet;
 import com.adobe.qe.toughday.api.annotations.ConfigArgSet;
+import com.adobe.qe.toughday.api.feeders.InputFeeder;
+import com.adobe.qe.toughday.api.feeders.OutputFeeder;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 import org.apache.logging.log4j.LogManager;
@@ -25,6 +30,8 @@ import org.junit.experimental.categories.Category;
 import org.reflections.Reflections;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.util.HashSet;
 import java.util.Set;
 
 @Category(TestTDConstraints.class)
@@ -37,6 +44,8 @@ public class TestSuiteStructural extends TestCase {
         Set<Class<? extends AbstractTest>> testClasses = reflections.getSubTypesOf(AbstractTest.class);
         testClasses.add(AbstractTest.class);
         for(Class TDtestClass : testClasses) {
+            if (excludeClass(TDtestClass)) continue;
+
             suite.addTest(new TestConstructor("test", TDtestClass));
             for (Method method : TDtestClass.getDeclaredMethods()) {
                 if (method.getAnnotation(ConfigArgSet.class) != null) {
@@ -51,12 +60,22 @@ public class TestSuiteStructural extends TestCase {
                     suite.addTest(new TestAnnotatedMethod("testModifier", method));
                     suite.addTest(new TestAnnotatedMethod("testArguments", method));
                 }
+                if (method.getAnnotation(FeederSet.class) != null) {
+                    suite.addTest(new TestFeederInjectAnnotatedMethod("testModifier", method));
+                    suite.addTest(new TestFeederInjectAnnotatedMethod("testArguments", method));
+                }
+                if (method.getAnnotation(FeederGet.class) != null) {
+                    suite.addTest(new TestFeederGetAnnotatedMethod("testModifier", method));
+                    suite.addTest(new TestFeederGetAnnotatedMethod("testArguments", method));
+                }
             }
         }
 
         Set<Class<? extends Publisher>> publisherClasses = reflections.getSubTypesOf(Publisher.class);
         publisherClasses.add(Publisher.class);
         for(Class TDpublisherClass : publisherClasses) {
+            if (excludeClass(TDpublisherClass)) continue;
+
             suite.addTest(new TestConstructor("test", TDpublisherClass));
             for (Method method : TDpublisherClass.getDeclaredMethods()) {
                 if (method.getAnnotation(ConfigArgSet.class) != null) {
@@ -67,6 +86,42 @@ public class TestSuiteStructural extends TestCase {
                     suite.addTest(new TestConfigGetAnnotatedMethod("testModifier", method));
                     suite.addTest(new TestConfigGetAnnotatedMethod("testArguments", method));
                 }
+                if (method.getAnnotation(FeederSet.class) != null) {
+                    suite.addTest(new TestFeederInjectAnnotatedMethod("testModifier", method));
+                    suite.addTest(new TestFeederInjectAnnotatedMethod("testArguments", method));
+                }
+                if (method.getAnnotation(FeederGet.class) != null) {
+                    suite.addTest(new TestFeederGetAnnotatedMethod("testModifier", method));
+                    suite.addTest(new TestFeederGetAnnotatedMethod("testArguments", method));
+                }
+            }
+        }
+
+        Set<Class> feeders = new HashSet<>();
+        feeders.addAll(reflections.getSubTypesOf(InputFeeder.class));
+        feeders.addAll(reflections.getSubTypesOf(OutputFeeder.class));
+        for(Class TDFeederClass : feeders) {
+            if (excludeClass(TDFeederClass)) continue;
+
+            suite.addTest(new TestFeederClass("testClassConstrains", TDFeederClass));
+            suite.addTest(new TestConstructor("test", TDFeederClass));
+            for(Method method : TDFeederClass.getDeclaredMethods()) {
+                if (method.getAnnotation(ConfigArgSet.class) != null) {
+                    suite.addTest(new TestConfigSetAnnotatedMethod("testModifier", method));
+                    suite.addTest(new TestConfigSetAnnotatedMethod("testArguments", method));
+                }
+                if (method.getAnnotation(ConfigArgGet.class) != null) {
+                    suite.addTest(new TestConfigGetAnnotatedMethod("testModifier", method));
+                    suite.addTest(new TestConfigGetAnnotatedMethod("testArguments", method));
+                }
+                if (method.getAnnotation(FeederSet.class) != null) {
+                    suite.addTest(new TestFeederInjectAnnotatedMethod("testModifier", method));
+                    suite.addTest(new TestFeederInjectAnnotatedMethod("testArguments", method));
+                }
+                if (method.getAnnotation(FeederGet.class) != null) {
+                    suite.addTest(new TestFeederGetAnnotatedMethod("testModifier", method));
+                    suite.addTest(new TestFeederGetAnnotatedMethod("testArguments", method));
+                }
             }
         }
         return suite;
@@ -75,5 +130,13 @@ public class TestSuiteStructural extends TestCase {
     @AfterClass
     public static void deleteFile()  {
         LogFileEraser.deteleFiles(((LoggerContext) LogManager.getContext(false)).getConfiguration());
+    }
+
+    //TODO: Remove this duplicated code once ReflectionsContainer moves into the API.
+    private static boolean excludeClass(Class klass) {
+        return Modifier.isAbstract(klass.getModifiers())
+                || klass.isAnonymousClass()
+                || !Modifier.isPublic(klass.getModifiers())
+                || klass.isAnnotationPresent(Internal.class);
     }
 }

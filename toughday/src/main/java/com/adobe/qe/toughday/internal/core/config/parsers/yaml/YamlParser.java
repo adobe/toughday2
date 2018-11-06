@@ -62,6 +62,7 @@ public class YamlParser implements ConfigurationParser {
                 yamlParserDesc.putListPropertyType("publishers", YamlParseAction.class);
                 yamlParserDesc.putListPropertyType("metrics", YamlParseAction.class);
                 yamlParserDesc.putListPropertyType("extensions", YamlParseAction.class);
+                yamlParserDesc.putListPropertyType("feeders", YamlParseAction.class);
 
                 constructor.addTypeDescription(yamlParserDesc);
 

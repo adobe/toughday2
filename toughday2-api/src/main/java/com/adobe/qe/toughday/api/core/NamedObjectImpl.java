@@ -11,17 +11,27 @@ governing permissions and limitations under the License.
 */
 package com.adobe.qe.toughday.api.core;
 
+import com.adobe.qe.toughday.api.annotations.ConfigArgGet;
+import com.adobe.qe.toughday.api.annotations.ConfigArgSet;
+
 /**
- * Exception for skipping tests in case a dependency test failed/was not executed.
+ * An extendable implementation of {@link NamedObject}
  */
-public class SkippedTestException extends ToughDayException {
-    public SkippedTestException(Throwable e) {
-        super(e.getMessage(), e);
+public class NamedObjectImpl implements NamedObject {
+    private String name;
+
+    public NamedObjectImpl() {
+        this.name = this.getClass().getSimpleName();
     }
 
-    public SkippedTestException(String message, Throwable e) {
-        super(message, e);
+    @ConfigArgGet
+    @Override
+    public String getName() {
+        return this.name;
     }
-
-    public SkippedTestException(String message) { super(message, null); }
+    @ConfigArgSet(required = false, desc = "The name of this object")
+    @Override
+    public void setName(String name) {
+        this.name = name;
+    }
 }

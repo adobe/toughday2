@@ -1,5 +1,5 @@
 /*
-Copyright 2015 Adobe. All rights reserved.
+Copyright 2018 Adobe. All rights reserved.
 This file is licensed to you under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License. You may obtain a copy
 of the License at http://www.apache.org/licenses/LICENSE-2.0
@@ -9,19 +9,10 @@ the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTA
 OF ANY KIND, either express or implied. See the License for the specific language
 governing permissions and limitations under the License.
 */
-package com.adobe.qe.toughday.api.core;
+package com.adobe.qe.toughday.api.feeders;
 
-/**
- * Exception for skipping tests in case a dependency test failed/was not executed.
- */
-public class SkippedTestException extends ToughDayException {
-    public SkippedTestException(Throwable e) {
-        super(e.getMessage(), e);
-    }
+import com.adobe.qe.toughday.api.annotations.labels.Nullable;
 
-    public SkippedTestException(String message, Throwable e) {
-        super(message, e);
-    }
-
-    public SkippedTestException(String message) { super(message, null); }
+public interface InputFeeder<T> extends Feeder<T> {
+    @Nullable T get(Object... keys) throws Exception;
 }
