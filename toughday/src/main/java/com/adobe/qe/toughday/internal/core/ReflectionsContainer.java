@@ -14,6 +14,7 @@ package com.adobe.qe.toughday.internal.core;
 import com.adobe.qe.toughday.api.core.Publisher;
 import com.adobe.qe.toughday.api.annotations.Internal;
 import com.adobe.qe.toughday.api.core.AbstractTest;
+import com.adobe.qe.toughday.api.feeders.Feeder;
 import com.adobe.qe.toughday.metrics.Metric;
 import com.adobe.qe.toughday.internal.core.engine.RunMode;
 import com.adobe.qe.toughday.internal.core.engine.PublishMode;
@@ -44,6 +45,7 @@ public class ReflectionsContainer {
     private HashMap<String, Class<? extends PublishMode>> publishModeClasses;
     private HashMap<String, Class<? extends RunMode>> runModeClasses;
     private HashMap<String, Class<? extends Metric>> metricClasses;
+    private HashMap<String, Class<? extends Feeder>> feederClasses;
 
     private Set<String> classRegister;
 
@@ -51,6 +53,7 @@ public class ReflectionsContainer {
 
     private static boolean excludeClass(Class klass) {
         return Modifier.isAbstract(klass.getModifiers())
+                || klass.isAnonymousClass()
                 || !Modifier.isPublic(klass.getModifiers())
                 || klass.isAnnotationPresent(Internal.class);
     }
@@ -78,6 +81,7 @@ public class ReflectionsContainer {
         publishModeClasses = new HashMap<>();
         runModeClasses = new HashMap<>();
         metricClasses = new HashMap<>();
+        feederClasses = new HashMap<>();
         classRegister = new HashSet<>();
 
         for(Class<? extends AbstractTest> testClass : reflections.getSubTypesOf(AbstractTest.class)) {
@@ -153,6 +157,19 @@ public class ReflectionsContainer {
             }
             else {
                 metricClasses.put(metricClass.getSimpleName(), metricClass);
+            }
+        }
+
+        for (Class<? extends Feeder> feederClass : reflections.getSubTypesOf(Feeder.class)) {
+            if (excludeClass(feederClass)) { continue; }
+            addToClassRegister(feederClass.getName());
+            feederClasses.put(feederClass.getName(), feederClass);
+
+            if (feederClasses.containsKey(feederClass.getSimpleName())) {
+                feederClasses.put(feederClass.getSimpleName(), null);
+            }
+            else {
+                feederClasses.put(feederClass.getSimpleName(), feederClass);
             }
         }
     }
@@ -305,5 +322,28 @@ public class ReflectionsContainer {
 
     public static <T> Set<Class<? extends T>> getSubTypesOf(final Class<T> type) {
        return reflections.getSubTypesOf(type);
+    }
+    /**
+     * Verifies if the given name is a feeder class
+     * @param feederClass the name of a feeder class
+     * @return true if the given name is a feeder class. false otherwise.
+     */
+    public boolean isFeederClass(String feederClass) { return feederClasses.containsKey(feederClass); }
+
+    /**
+    * Get the feeder class corresponding to the name
+    * @param feederClass the name of a feeder class
+    * @return the feeder class corresponding to the name
+    * @throws IllegalArgumentException if the name is either ambiguous (more than one feeder class has the same name and a FQDN wasn't used) or there is no
+    *  feeder class with the specified name
+    */
+    public Class<? extends Feeder> getFeederClass(String feederClass) {
+        if (isFeederClass(feederClass)) {
+            if(feederClasses.get(feederClass) == null) {
+                throw new IllegalArgumentException("There is more than one feeder named: " + feederClass + ". Please use the fully qualified domain name.");
+            }
+            return feederClasses.get(feederClass);
+        }
+        throw new IllegalArgumentException("Unkown feeder: " + feederClass);
     }
 }

@@ -12,10 +12,12 @@ governing permissions and limitations under the License.
 package com.adobe.qe.toughday.internal.core.engine;
 
 import com.adobe.qe.toughday.Main;
+import com.adobe.qe.toughday.api.annotations.feeders.FeederGet;
 import com.adobe.qe.toughday.api.core.AbstractTest;
 import com.adobe.qe.toughday.api.core.AssumptionUtils;
 import com.adobe.qe.toughday.api.core.Publisher;
 import com.adobe.qe.toughday.api.core.RunnersContainer;
+import com.adobe.qe.toughday.api.feeders.Feeder;
 import com.adobe.qe.toughday.internal.core.*;
 import com.adobe.qe.toughday.api.annotations.Setup;
 import com.adobe.qe.toughday.api.annotations.ConfigArgGet;
@@ -39,7 +41,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -176,6 +177,11 @@ public class Engine {
         out.println("Global configuration:");
         printObject(out, configuration.getGlobalArgs());
 
+        out.println("#################### Feeders ######################");
+        for (Feeder feeder : configuration.getFeeders()) {
+            printObject(out, feeder);
+        }
+
         int i = 1;
         for (Phase phase : configuration.getPhases()) {
             out.println("######################## Phase " + i + " ########################");
@@ -243,6 +249,21 @@ public class Engine {
                         StringUtils.isEmpty(configArg.name()) ? Configuration.propertyFromMethod(method.getName()) : configArg.name(),
                         method.invoke(obj));
             }
+
+            if (method.isAnnotationPresent(FeederGet.class)) {
+                FeederGet feederGet = method.getAnnotation(FeederGet.class);
+                Object feeder = method.invoke(obj);
+                if(feeder == null) return;
+                try {
+                    String name = (String) feeder.getClass().getMethod("getName").invoke(feeder);
+                    printObjectProperty(out,
+                            Configuration.propertyFromMethod(method.getName()),
+                            name);
+                } catch (NoSuchMethodException e) {
+                    //Should not happen
+                    return;
+                }
+            }
         }
 
         out.println();
@@ -291,6 +312,10 @@ public class Engine {
         if(globalArgs.getInstallSampleContent() && !globalArgs.getDryRun()) {
             printConfiguration(configuration, new PrintStream(new LogStream(LOG)));
             installToughdayContentPackage(globalArgs);
+        }
+
+        for(Feeder feeder : configuration.getFeeders()) {
+            feeder.init();
         }
 
         Engine.logGlobal(String.format("Running tests for %s seconds or until count for all tests has been reached",

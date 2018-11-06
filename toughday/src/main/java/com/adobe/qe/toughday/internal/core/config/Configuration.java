@@ -14,6 +14,7 @@ package com.adobe.qe.toughday.internal.core.config;
 import com.adobe.qe.toughday.api.annotations.ConfigArgSet;
 import com.adobe.qe.toughday.api.core.AbstractTest;
 import com.adobe.qe.toughday.api.core.Publisher;
+import com.adobe.qe.toughday.api.feeders.Feeder;
 import com.adobe.qe.toughday.internal.core.Timestamp;
 import com.adobe.qe.toughday.internal.core.config.parsers.yaml.GenerateYamlConfiguration;
 import com.adobe.qe.toughday.internal.core.ReflectionsContainer;
@@ -72,6 +73,7 @@ public class Configuration {
     private boolean anyMetricAdded = false;
     private boolean anyPublisherAdded = false;
     private boolean allTestsExcluded = false;
+    private Map<String, Feeder> feeders = new LinkedHashMap<>();
 
     private void handleExtensions(ConfigParams configParams) {
         List<String> extensionList = new ArrayList<>();
@@ -429,7 +431,7 @@ public class Configuration {
             }
             allTestsExcluded = false;
 
-            AbstractTest test = createObject(ReflectionsContainer.getInstance().getTestClass(itemToAdd.getClassName()), itemToAdd.getParameters());
+            AbstractTest test = createObject(ReflectionsContainer.getInstance().getTestClass(itemToAdd.getClassName()), itemToAdd.getParameters(), feeders);
             suite.add(test);
             items.put(test.getName(), test.getClass());
         } else if (ReflectionsContainer.getInstance().isPublisherClass(itemToAdd.getClassName())) {
@@ -454,6 +456,17 @@ public class Configuration {
             }
             metrics.put(metric.getName(), metric);
             anyMetricAdded = true;
+        } else if (ReflectionsContainer.getInstance().isFeederClass(itemToAdd.getClassName())) {
+            Feeder feeder = createObject(
+                    ReflectionsContainer.getInstance().getFeederClass(itemToAdd.getClassName()),
+                    itemToAdd.getParameters());
+            items.put(feeder.getName(), feeder.getClass());
+
+            if (feeders.containsKey(feeder.getName())) {
+                throw new IllegalStateException("There is already a feeder named \"" + feeder.getName() + "\"." +
+                        "Please provide a different name using the \"name\" property.");
+            }
+            feeders.put(feeder.getName(), feeder);
         } else if (itemToAdd.getClassName().equals("BASICMetrics")) {
             Collection<Metric> basicMetrics = Metric.basicMetrics;
             for (Metric metric : basicMetrics) {
@@ -506,14 +519,14 @@ public class Configuration {
             //check if all were excluded
             AbstractTest testObject = suite.getTest(itemMeta.getName());
             int index = suite.remove(testObject);
-            setObjectProperties(testObject, itemMeta.getParameters(), false);
+            setObjectProperties(testObject, itemMeta.getParameters(), false, feeders);
             suite.add(testObject, index);
 
             items.put(testObject.getName(), testObject.getClass());
         } else if (publishers.containsKey(itemMeta.getName())) {
             Publisher publisherObject = publishers.get(itemMeta.getName());
             String name = publisherObject.getName();
-            setObjectProperties(publisherObject, itemMeta.getParameters(), false);
+            setObjectProperties(publisherObject, itemMeta.getParameters(), false, feeders);
             if (!name.equals(publisherObject.getName())) {
                 publishers.put(publisherObject.getName(), publishers.remove(name));
             }
@@ -522,12 +535,20 @@ public class Configuration {
         } else if (metrics.containsKey(itemMeta.getName())) {
             Metric metricObject = metrics.get(itemMeta.getName());
             String name = metricObject.getName();
-            setObjectProperties(metricObject, itemMeta.getParameters(), false);
+            setObjectProperties(metricObject, itemMeta.getParameters(), false, feeders);
             if (!name.equals(metricObject.getName())) {
                 metrics.put(metricObject.getName(), metrics.remove(name));
             }
 
             items.put(name, metricObject.getClass());
+        } else if (feeders.containsKey(itemMeta.getName())) {
+            Feeder feederObject = feeders.get(itemMeta.getName());
+            String name = feederObject.getName();
+            setObjectProperties(feederObject, itemMeta.getParameters(), false, feeders);
+            if (!name.equals(feederObject.getName())) {
+                feeders.put(feederObject.getName(), feeders.remove(name));
+            }
+            items.put(name, feederObject.getClass());
         } else {
             throw new IllegalStateException("No test/publisher/metric found with name \"" + itemMeta.getName() + "\", so we can't configure it.");
         }
@@ -554,6 +575,8 @@ public class Configuration {
             publishers.remove(itemName);
         } else if (metrics.containsKey(itemName)) {
             metrics.remove(itemName);
+        } else if (feeders.containsKey(itemName)) {
+            feeders.remove(itemName);
         } else {
             throw new IllegalStateException("No test/publisher/metric found with name \"" + itemName + "\", so we can't exclude it.");
         }
@@ -604,47 +627,58 @@ public class Configuration {
      * @throws InvocationTargetException caused by reflection
      * @throws IllegalAccessException    caused by reflection
      */
-    public static <T> T setObjectProperties(T object, Map<String, Object> args, boolean applyDefaults) throws InvocationTargetException, IllegalAccessException {
+    //TODO figure out if we can make this public static again
+    public static   <T> T setObjectProperties(T object, Map<String, Object> args, boolean applyDefaults, Map<String, Feeder> feedersContext) throws InvocationTargetException, IllegalAccessException {
         Class classObject = object.getClass();
         LOGGER.info("Configuring object of class: " + classObject.getSimpleName()+" ["+classObject.getName()+"]");
         for (Method method : classObject.getMethods()) {
-            ConfigArgSet annotation = method.getAnnotation(ConfigArgSet.class);
-            if (annotation == null) {
-                continue;
-            }
-
-            String property = propertyFromMethod(method.getName());
-            Object value = args.remove(property);
-            if (value == null) {
-                if (requiredFieldsForClassAdded.containsKey(object)
-                        && requiredFieldsForClassAdded.get(object).contains(property)) {
-                    continue;
-                }
-
-                if (annotation.required()) {
-                    throw new IllegalArgumentException("Property \"" + property + "\" is required for class " + classObject.getSimpleName());
-                } else if(applyDefaults) {
-                    String defaultValue = annotation.defaultValue();
-                    if (defaultValue.compareTo("") != 0) {
-                        LOGGER.info("\tSetting property \"" + property + "\" to default value: \"" + defaultValue + "\"");
-                        method.invoke(object, defaultValue);
-                    }
-                }
-            } else {
-                if (annotation.required()) {
-                    if (requiredFieldsForClassAdded.containsKey(object)) {
-                        requiredFieldsForClassAdded.get(object).add(property);
-                    } else {
-                        requiredFieldsForClassAdded.put(object,
-                                new HashSet<>(Collections.singletonList(property)));
-                    }
-                }
-                LOGGER.info("\tSetting property \"" + property + "\" to: \"" + value + "\"");
-                //TODO fix this ugly thing: all maps should be String -> String, but snake yaml automatically converts Integers, etc. so for now we call toString.
-                method.invoke(object, value.toString());
-            }
+            callConfigArgSet(method, object, args, applyDefaults);
+            FeederInjector.injectFeeder(method, object, args, applyDefaults, feedersContext);
         }
         return object;
+    }
+
+    private static void callConfigArgSet(Method method, Object object, Map<String, Object> args, boolean applyDefaults) throws InvocationTargetException, IllegalAccessException {
+        ConfigArgSet annotation = method.getAnnotation(ConfigArgSet.class);
+        if (annotation == null) {
+            return;
+        }
+
+        String property = propertyFromMethod(method.getName());
+        Object value = args.remove(property);
+        if (value == null) {
+            if (requiredFieldsForClassAdded.containsKey(object)
+                    && requiredFieldsForClassAdded.get(object).contains(property)) {
+                return;
+            }
+
+            if (annotation.required()) {
+                throw new IllegalArgumentException("Property \"" + property + "\" is required for class " + object.getClass().getSimpleName());
+            } else if(applyDefaults) {
+                String defaultValue = annotation.defaultValue();
+                if (defaultValue.compareTo("") != 0) {
+                    LOGGER.info("\tSetting property \"" + property + "\" to default value: \"" + defaultValue + "\"");
+                    method.invoke(object, defaultValue);
+                }
+            }
+        } else {
+            if (annotation.required()) {
+                if (requiredFieldsForClassAdded.containsKey(object)) {
+                    requiredFieldsForClassAdded.get(object).add(property);
+                } else {
+                    requiredFieldsForClassAdded.put(object,
+                            new HashSet<>(Collections.singletonList(property)));
+                }
+            }
+            LOGGER.info("\tSetting property \"" + property + "\" to: \"" + value + "\"");
+            //TODO fix this ugly thing: all maps should be String -> String, but snake yaml automatically converts Integers, etc. so for now we call toString.
+            method.invoke(object, value.toString());
+        }
+    }
+
+    public static  <T> T createObject(Class<? extends T> classObject, Map<String, Object> args)
+            throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        return createObject(classObject, args, null);
     }
 
     /**
@@ -659,7 +693,7 @@ public class Configuration {
      * @throws InstantiationException
      * @throws NoSuchMethodException
      */
-    public static <T> T createObject(Class<? extends T> classObject, Map<String, Object> args)
+    public static  <T> T createObject(Class<? extends T> classObject, Map<String, Object> args, Map<String, Feeder> feederContext)
             throws IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchMethodException {
 
         Constructor constructor = null;
@@ -673,7 +707,7 @@ public class Configuration {
         }
 
         T object = (T) constructor.newInstance();
-        setObjectProperties(object, args, true);
+        setObjectProperties(object, args, true, feederContext);
         return object;
     }
 
@@ -840,4 +874,6 @@ public class Configuration {
     public Set<Phase> getPhasesWithoutDuration() {
         return phasesWithoutDuration;
     }
+
+    public Collection<Feeder> getFeeders() { return feeders.values(); }
 }
