@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: agent
+spec:
+  parallelism: 2
+  ttlSecondsAfterFinished: 0
+  template:
+    metadata:
+      labels:
+        app: agent
+    spec:
+      containers:
+      - name: agent-container
+        image: <TD docker image>
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 4567
+          initialDelaySeconds: 20
+          periodSeconds: 3
+      restartPolicy: Never

@@ -17,17 +17,11 @@ import com.adobe.qe.toughday.internal.core.config.Actions;
 import com.adobe.qe.toughday.internal.core.Timestamp;
 import com.adobe.qe.toughday.internal.core.config.ConfigParams;
 import com.adobe.qe.toughday.internal.core.config.PhaseParams;
-import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.introspector.Property;
-import org.yaml.snakeyaml.nodes.NodeTuple;
-import org.yaml.snakeyaml.nodes.Tag;
-import org.yaml.snakeyaml.representer.Representer;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.*;
 
 public class GenerateYamlConfiguration {
@@ -43,6 +37,7 @@ public class GenerateYamlConfiguration {
     private static final String DEFAULT_YAML_CONFIGURATION_FILENAME = "toughday_";
     private static final String DEFAULT_YAML_EXTENSION = ".yaml";
     private static final String TIMESTAMP = Timestamp.START_TIME;
+    public static final String yamlConfigFilename = DEFAULT_YAML_CONFIGURATION_FILENAME + TIMESTAMP + DEFAULT_YAML_EXTENSION;
 
     public GenerateYamlConfiguration(ConfigParams configParams, Map<String, Class> items) {
         this.configParams = configParams;
@@ -59,6 +54,13 @@ public class GenerateYamlConfiguration {
         Map<String, Object> globals = configParams.getGlobalParams();
         globals.remove("configfile");
         return globals;
+    }
+
+    public Map<String, Object> getDistributedConfig() {
+        Map<String, Object> distributedConfigParms = configParams.getDistributedConfigParams();
+        // remove this so that the driver won't try to trigger the execution
+        distributedConfigParms.remove("driverip");
+        return distributedConfigParms;
     }
 
     public Map<String, Object> getPublishmode() {
@@ -185,85 +187,28 @@ public class GenerateYamlConfiguration {
         }
     }
 
-    // Configure yaml representer to exclude class tags when dumping an object.
-    private void configureYamlRepresenterToExcludeClassTags(Representer representer) {
-        // Tag.MAP is by default ignored when dumping an object
-        representer.addClassTag(GenerateYamlConfiguration.class, Tag.MAP);
-        for (Class klass : ReflectionsContainer.getSubTypesOf(YamlDumpAction.class)) {
-            representer.addClassTag(klass, Tag.MAP);
-        }
+    public String createYamlStringRepresentation() {
+        Yaml yaml = YamlBuilder.getYamlInstance();
 
+        return yaml.dump(this);
     }
 
     /**
      * Creates a YAML configuration file.
      */
     public void createYamlConfigurationFile() {
-
-        final String filename = DEFAULT_YAML_CONFIGURATION_FILENAME + TIMESTAMP + DEFAULT_YAML_EXTENSION;
-
-        FileWriter fileWriter = null;
-        try {
-            fileWriter = new FileWriter(filename);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
-        org.yaml.snakeyaml.constructor.Constructor constructor = new org.yaml.snakeyaml.constructor.Constructor
-                (GenerateYamlConfiguration.class);
-
-        DumperOptions dumperOptions = new DumperOptions();
-        dumperOptions.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-        dumperOptions.setAllowReadOnlyProperties(true);
-
-        // Configure the representer to ignore empty fields when dumping the object. By default, each empty filed is represented as {}.
-
-        Representer representer = new Representer() {
-            @Override
-            protected NodeTuple representJavaBeanProperty(Object javaBean, Property property, Object propertyValue, Tag customTag) {
-
-                Method method = null;
-                try {
-                    if (propertyValue == null) {
-                        propertyValue = "";
-                    }
-                    method = propertyValue.getClass().getMethod("isEmpty");
-                } catch (NoSuchMethodException e) { }
-
-                if (method == null) {
-                    return super.representJavaBeanProperty(javaBean, property, propertyValue, customTag);
-                } else {
-
-                    try {
-                        if (Boolean.valueOf(method.invoke(propertyValue).toString())) {
-                            return null;
-                        }
-                    } catch (Throwable t) {
-                        t.printStackTrace();
-                    }
-
-                    return super.representJavaBeanProperty(javaBean, property, propertyValue, customTag);
-                }
-            }
-        };
-
-        configureYamlRepresenterToExcludeClassTags(representer);
-
-        // dump configuration
-        Yaml yaml = new Yaml(constructor, representer, dumperOptions);
-        String yamlObjectRepresentation = yaml.dump(this);
+        String yamlStringRepresentation = createYamlStringRepresentation();
 
         try {
-            bufferedWriter.write(yamlObjectRepresentation);
+            FileWriter fileWriter = new FileWriter(yamlConfigFilename);
+            BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+
+            bufferedWriter.write(yamlStringRepresentation);
             bufferedWriter.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
-        try {
             fileWriter.close();
             bufferedWriter.close();
+
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -29,6 +29,7 @@ import com.adobe.qe.toughday.internal.core.config.*;
 import com.adobe.qe.toughday.internal.core.engine.Engine;
 import com.adobe.qe.toughday.internal.core.engine.PublishMode;
 import com.adobe.qe.toughday.internal.core.engine.RunMode;
+import com.adobe.qe.toughday.internal.core.distributedtd.cluster.DistributedConfig;
 import com.adobe.qe.toughday.metrics.Metric;
 import com.google.common.base.Joiner;
 import net.jodah.typetools.TypeResolver;
@@ -53,9 +54,9 @@ public class CliParser implements ConfigurationParser {
     private static final String TEST_CLASS_HELP_HEADER = String.format(HELP_HEADER_FORMAT_WITH_TAGS, "Class", "Fully qualified domain name", "Tags", "Description");
     private static final String PUBLISH_CLASS_HELP_HEADER = String.format(HELP_HEADER_FORMAT_NO_TAGS, "Class", "Fully qualified domain name", "Description");
     private static final String METRIC_CLASS_HELP_HEADER = PUBLISH_CLASS_HELP_HEADER;
-    private static Method[] globalArgMethods = GlobalArgs.class.getMethods();
     private static final String SUITE_HELP_HEADER = String.format("   %-40s %-40s   %s", "Suite", "Tags", "Description");
     private static Map<Integer, Map<String, ConfigArgSet>> availableGlobalArgs = new HashMap<>();
+    private static Map<Integer, Map<String, ConfigArgSet>> availableDistributedConfigArgs = new HashMap<>();
     private static List<ParserArgHelp> parserArgHelps = new ArrayList<>();
 
 
@@ -73,18 +74,24 @@ public class CliParser implements ConfigurationParser {
                 add("tag");
             }});
 
+    private static void collectAvailableConfigurationOptions(Class type, Map<Integer, Map<String, ConfigArgSet>> availableArgs) {
+        Arrays.stream(type.getMethods())
+                .filter(method -> method.isAnnotationPresent(ConfigArgSet.class))
+                .forEach(method -> {
+                    ConfigArgSet annotation = method.getAnnotation(ConfigArgSet.class);
+                    int order = annotation.order();
+                    if (!availableArgs.containsKey(order)) {
+                        availableArgs.put(order, new HashMap<>());
+                    }
+
+                    availableArgs.get(order)
+                            .put(Configuration.propertyFromMethod(method.getName()), annotation);
+                });
+    }
+
     static {
-        for (Method method : globalArgMethods) {
-            if (method.getAnnotation(ConfigArgSet.class) != null) {
-                ConfigArgSet annotation = method.getAnnotation(ConfigArgSet.class);
-                int order = annotation.order();
-                if (null == availableGlobalArgs.get(order)) {
-                    availableGlobalArgs.put(order, new HashMap<String, ConfigArgSet>());
-                }
-                Map<String, ConfigArgSet> globalArgMap = availableGlobalArgs.get(order);
-                globalArgMap.put(Configuration.propertyFromMethod(method.getName()), annotation);
-            }
-        }
+        collectAvailableConfigurationOptions(GlobalArgs.class, availableGlobalArgs);
+        collectAvailableConfigurationOptions(DistributedConfig.class, availableDistributedConfigArgs);
 
         for (Class parserClass : ReflectionsContainer.getSubTypesOf(ConfigurationParser.class)) {
             for (Field field : parserClass.getDeclaredFields()) {
@@ -230,6 +237,10 @@ public class CliParser implements ConfigurationParser {
         return j - startIndex;
     }
 
+    private boolean isGlobalArg(String paramName) {
+        return availableGlobalArgs.values().stream().anyMatch(map -> map.containsKey(paramName));
+    }
+
     /**
      * Implementation of parser interface
      * @param cmdLineArgs command line arguments
@@ -261,6 +272,9 @@ public class CliParser implements ConfigurationParser {
                 } else if (arg.equals("runmode")) {
                     skip = parseObjectProperties(i + 1, cmdLineArgs, args);
                     configParams.setRunModeParams(args);
+                } else if (arg.equals("distributedconfig")) {
+                    skip = parseObjectProperties(i + 1, cmdLineArgs, args);
+                    configParams.setDistributedConfigParams(args);
                 } else if (arg.equals("help")) {
                     skip = 1;
                     globalArgs.put("host", "N/A"); //TODO remove ugly hack
@@ -268,14 +282,9 @@ public class CliParser implements ConfigurationParser {
                     String[] res = parseProperty(arg);
                     String key = res[0];
                     Object val = getObjectFromString(res[1]);
-                    // if global param does not exist
-                    boolean found = false;
-                    for (Map<String, ConfigArgSet> argz : availableGlobalArgs.values()) {
-                        if (argz.containsKey(key)) {
-                            found = true;
-                            break;
-                        }
-                    }
+                    // if global param or distributed td config param does not exist
+                    boolean found = isGlobalArg(key);
+
                    if (!found && !parserArgs.contains(key) && !availableHelpOptions.contains(key) && !helpOptionsParameters.contains(key)
                             && !key.equals("suite")  && !key.equals("suitesetup")) {
                         throw new IllegalArgumentException("Unrecognized argument --" + key);
@@ -468,23 +477,26 @@ public class CliParser implements ConfigurationParser {
         System.out.println("\t java -jar toughday.jar --host=localhost --add extension.jar --add com.adobe.qe.toughday.tests.extensionTest");
         System.out.println("\t java -jar toughday.jar --suite=toughday --add BASICMetrics --add Average decimals=3 --exclude Failed");
 
-        System.out.println("\r\nGlobal arguments:");
+        System.out.println("\r\nExamples for running TD distributed: \r\n");
+        System.out.println("\t java -jar toughday.jar --host=localhost --distributedconfig driverip=1.1.1.1");
+        System.out.println("\t java -jar toughday.jar --host=localhost --distributedconfig driverip=1.1.1.1 heartbeatinterval=10s --suite=toughday");
 
-        for (Integer order : availableGlobalArgs.keySet()) {
-            Map<String, ConfigArgSet> paramGroup = availableGlobalArgs.get(order);
-            for (String param : paramGroup.keySet()) {
-                System.out.printf("\t--%-32s\t Default: %s - %s\r\n",
-                        param + "=val", paramGroup.get(param).defaultValue(), paramGroup.get(param).desc());
-            }
-        }
+        System.out.println("\r\nGlobal arguments:");
+        availableGlobalArgs.forEach((order, paramGroup) ->
+                paramGroup.forEach((key, value) -> System.out.printf("\t--%-32s\t Default: %s - %s\r\n",
+                        key + "=val", value.defaultValue(), value.desc())));
         for (ParserArgHelp parserArgHelp : parserArgHelps) {
             System.out.printf("\t--%-32s\t Default: %s - %s\r\n",
                     parserArgHelp.name() + "=val", parserArgHelp.defaultValue(), parserArgHelp.description());
         }
-
         //System.out.printf("\t%-32s\t %s\r\n", "--suitesetup=val", getSuiteSetupDescription());
         System.out.printf("\t%-32s\t %s\r\n", "--suite=val",
                 "Default: toughday - Where \"val\" can be one or a list (separated by commas) of the predefined suites");
+
+        System.out.println("\r\n Distributed run arguments (--distributedconfig):");
+        availableDistributedConfigArgs.forEach((order, paramGroup) ->
+                paramGroup.forEach((key, value) -> System.out.printf("\t%-32s\t Default: %s - %s\r\n",
+                        key + "=val", value.defaultValue(), value.desc())));
 
         System.out.println("\r\nAvailable run modes (--runmode):");
         for(Map.Entry<String, Class<? extends RunMode>> runMode : ReflectionsContainer.getInstance().getRunModeClasses().entrySet()) {
