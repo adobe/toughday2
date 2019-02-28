@@ -14,8 +14,8 @@ package com.adobe.qe.toughday;
 import com.adobe.qe.toughday.internal.core.ReflectionsContainer;
 import com.adobe.qe.toughday.internal.core.TestSuite;
 import com.adobe.qe.toughday.internal.core.Timestamp;
-import com.adobe.qe.toughday.internal.core.config.ConfigParams;
 import com.adobe.qe.toughday.internal.core.config.Configuration;
+import com.adobe.qe.toughday.internal.core.config.GlobalArgs;
 import com.adobe.qe.toughday.internal.core.config.PhaseParams;
 import com.adobe.qe.toughday.internal.core.engine.Phase;
 import com.adobe.qe.toughday.internal.core.engine.publishmodes.Intervals;
@@ -278,7 +278,7 @@ public class TestConfiguration {
         Assert.assertEquals(phase.getName(), "phase");
         Assert.assertEquals(phase.getMeasurable(), false);
 
-        long duration = phase.getDuration();
+        long duration = GlobalArgs.parseDurationToSeconds(phase.getDuration());
         Assert.assertEquals(duration, 60);
     }
 
@@ -385,7 +385,7 @@ public class TestConfiguration {
 
         Assert.assertEquals(configuration.getPhasesWithoutDuration().size(), 1);
 
-        long duration = configuration.getPhases().get(1).getDuration();
+        long duration = GlobalArgs.parseDurationToSeconds(configuration.getPhases().get(1).getDuration());
         Assert.assertEquals(duration, 5L);
     }
 
@@ -396,10 +396,10 @@ public class TestConfiguration {
 
         Assert.assertEquals(configuration.getPhasesWithoutDuration().size(), 2);
 
-        long duration = configuration.getPhases().get(1).getDuration();
+        long duration = GlobalArgs.parseDurationToSeconds(configuration.getPhases().get(1).getDuration());
         Assert.assertEquals(duration, 5L);
 
-        duration = configuration.getPhases().get(2).getDuration();
+        duration = GlobalArgs.parseDurationToSeconds(configuration.getPhases().get(2).getDuration());
         Assert.assertEquals(duration, 5L);
     }
 

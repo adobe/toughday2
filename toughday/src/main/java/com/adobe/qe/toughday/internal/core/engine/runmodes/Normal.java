@@ -18,6 +18,11 @@ import com.adobe.qe.toughday.api.annotations.ConfigArgGet;
 import com.adobe.qe.toughday.api.annotations.ConfigArgSet;
 import com.adobe.qe.toughday.internal.core.config.GlobalArgs;
 import com.adobe.qe.toughday.internal.core.engine.*;
+import com.adobe.qe.toughday.internal.core.distributedtd.redistribution.runmodes.RunModeBalancer;
+import com.adobe.qe.toughday.internal.core.distributedtd.redistribution.runmodes.NormalRunModeBalancer;
+import com.adobe.qe.toughday.internal.core.distributedtd.splitters.runmodes.NormalRunModeSplitter;
+
+import com.adobe.qe.toughday.internal.core.distributedtd.splitters.runmodes.RunModeSplitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +30,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 @Description(desc = "Runs tests normally.")
-public class Normal implements RunMode {
+public class Normal implements RunMode, Cloneable {
     private static final Logger LOG = LoggerFactory.getLogger(Normal.class);
 
     private static final int EPS = 1;
@@ -40,8 +45,8 @@ public class Normal implements RunMode {
     private static final long DEFAULT_INTERVAL = 1000;
 
     private ExecutorService testsExecutorService;
-    private ScheduledExecutorService addWorkerScheduler = Executors.newSingleThreadScheduledExecutor();
-    private ScheduledExecutorService removeWorkerScheduler = Executors.newSingleThreadScheduledExecutor();
+    private ScheduledExecutorService rampingScheduler = Executors.newScheduledThreadPool(1);
+    private ScheduledFuture<?> scheduledFuture = null;
 
     private final List<AsyncTestWorker> testWorkers = Collections.synchronizedList(new LinkedList<>());
     private final List<RunMap> runMaps = new ArrayList<>();
@@ -54,10 +59,23 @@ public class Normal implements RunMode {
     private long waitTime = DEFAULT_WAIT_TIME;
     private long interval = DEFAULT_INTERVAL;
     private int activeThreads = 0;
+    private long initialDelay = 0;
 
     private RunContext context = null;
+    private RunModeSplitter<Normal> runModeSplitter = new NormalRunModeSplitter();
+    private final RunModeBalancer<Normal> normalRunModeBalancer = new NormalRunModeBalancer();
+    private Engine engine;
 
-    @ConfigArgGet
+
+    public Normal() {
+        /* this is required when running TD distributed because scheduled task might be cancelled and
+         * rescheduled when rebalancing the work between the agents.
+         */
+        ScheduledThreadPoolExecutor scheduledPoolExecutor = (ScheduledThreadPoolExecutor) rampingScheduler;
+        scheduledPoolExecutor.setRemoveOnCancelPolicy(true);
+    }
+
+    @ConfigArgGet(redistribute = true)
     public int getConcurrency() {
         return concurrency;
     }
@@ -67,6 +85,11 @@ public class Normal implements RunMode {
     public void setConcurrency(String concurrencyString) {
         checkNotNegative(Long.parseLong(concurrencyString), "concurrency");
         this.concurrency = Integer.parseInt(concurrencyString);
+    }
+
+    @Override
+    public Object clone() throws CloneNotSupportedException {
+        return super.clone();
     }
 
     @ConfigArgGet
@@ -95,12 +118,13 @@ public class Normal implements RunMode {
         this.start = Integer.valueOf(start);
     }
 
-    @ConfigArgGet
+    @ConfigArgGet(redistribute = true)
     public int getRate() {
         return rate;
     }
 
-    @ConfigArgSet(required = false, desc = "The number of threads added per time unit. When it equals -1, it means it is not set.", defaultValue = "-1")
+    @ConfigArgSet(required = false, desc = "The number of threads added per time unit. When it equals -1, it means it is not set.",
+            defaultValue = "-1")
     public void setRate(String rate) {
         if (!rate.equals("-1")) {
             checkNotNegative(Long.parseLong(rate), "rate");
@@ -108,17 +132,22 @@ public class Normal implements RunMode {
         this.rate = Integer.valueOf(rate);
     }
 
-    @ConfigArgGet
-    public long getInterval() {
-        return interval;
+    @ConfigArgGet(redistribute = true)
+    public String getInterval() {
+        return String.valueOf(this.interval / 1000) + 's';
     }
 
-    @ConfigArgSet(required = false, desc = "Used with rate to specify the time interval to add threads.", defaultValue = DEFAULT_INTERVAL_STRING)
+    public void setInitialDelay(long initialDelay) {
+        this.initialDelay = initialDelay;
+    }
+
+    @ConfigArgSet(required = false, desc = "Used with rate to specify the time interval to add threads.",
+            defaultValue = DEFAULT_INTERVAL_STRING)
     public void setInterval(String interval) {
         this.interval = GlobalArgs.parseDurationToSeconds(interval) * 1000;
     }
 
-    @ConfigArgGet
+    @ConfigArgGet(redistribute = true)
     public int getEnd() {
         return end;
     }
@@ -133,6 +162,42 @@ public class Normal implements RunMode {
 
     public int getActiveThreads() {
         return activeThreads;
+    }
+
+    /**
+     * Method used for cancelling the execution of the task responsible for updating the number of worker threads.
+     * @return
+     */
+    public boolean cancelPeriodicTask() {
+        if (this.scheduledFuture != null) {
+            return this.scheduledFuture.cancel(true);
+        }
+
+        return true;
+    }
+
+    /**
+     * Method used for scheduling the task responsible for updating the number of worker threads to execute
+     * periodically, every 'interval' milliseconds.
+     */
+    public void schedulePeriodicTask() {
+        if (this.scheduledFuture == null) {
+            return;
+        }
+
+        if (this.start < this.end) {
+            // execute 'rate' workers every 'interval'
+            this.scheduledFuture = this.rampingScheduler.scheduleAtFixedRate(this.getRampUpRunnable(this.engine,
+                    this.engine.getCurrentPhase().getTestSuite()), this.initialDelay, this.interval, TimeUnit.MILLISECONDS);
+        } else if (this.end < this.start) {
+            // interrupt 'rate' workers every 'interval'
+            this.scheduledFuture = this.rampingScheduler.scheduleAtFixedRate(this.getRampDownRunnable(), this.initialDelay,
+                    this.interval, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    public Engine getEngine() {
+        return this.engine;
     }
 
     private void checkNotNegative(long param, String property) {
@@ -151,13 +216,14 @@ public class Normal implements RunMode {
         }
     }
 
-    private boolean isVariableConcurrency() {
+    public boolean isVariableConcurrency() {
         return start != -1 && end != -1;
     }
 
     @Override
     public void runTests(Engine engine) {
         checkInvalidArgs();
+        this.engine = engine;
 
         this.phase = engine.getCurrentPhase();
         TestSuite testSuite = phase.getTestSuite();
@@ -168,7 +234,7 @@ public class Normal implements RunMode {
         // namely every 'interval' milliseconds
         if (isVariableConcurrency()) {  // if start and end were provided
             if (rate == -1) {
-                interval = (long)Math.floor(1000.0 * (phase.getDuration() - EPS)
+                interval = (long)Math.floor(1000.0 * (GlobalArgs.parseDurationToSeconds(phase.getDuration()) - EPS)
                         / (start < end? end - start : start - end));
                 rate = 1;
             }
@@ -184,16 +250,16 @@ public class Normal implements RunMode {
             createAndExecuteWorker(engine, testSuite);
         }
 
-        // execute 'rate' workers every 'interval'
-        rampUp(engine, testSuite);
-
-        // interrupt 'rate' workers every 'interval'
-        rampDown();
+        schedulePeriodicTask();
     }
 
+    public void finishAndDeleteWorker(AsyncTestWorker worker) {
+        worker.finishExecution();
+        this.getRunContext().getTestWorkers().remove(worker);
+        activeThreads--;
+    }
 
-
-    private void createAndExecuteWorker(Engine engine, TestSuite testSuite) {
+    public void createAndExecuteWorker(Engine engine, TestSuite testSuite) {
         AsyncTestWorkerImpl testWorker = new AsyncTestWorkerImpl(engine, phase, testSuite, phase.getPublishMode().getRunMap().newInstance());
         synchronized (testWorkers) {
             testWorkers.add(testWorker);
@@ -203,6 +269,8 @@ public class Normal implements RunMode {
             runMaps.add(testWorker.getLocalRunMap());
         }
 
+        LOG.info("created test worker ");
+
         try {
             testsExecutorService.execute(testWorker);
         } catch (OutOfMemoryError e) {
@@ -210,64 +278,52 @@ public class Normal implements RunMode {
         }
     }
 
-    private void rampUp(Engine engine, TestSuite testSuite) {
-        // every 'interval' milliseconds, we'll create 'rate' workers
-        if (start < end) {
-            addWorkerScheduler.scheduleAtFixedRate(() -> {
-                for (int i = 0; i < rate; ++i) {
-                    // if all the workers have been created
-                    if (activeThreads >= end) {
-                        addWorkerScheduler.shutdownNow();
+    private Runnable getRampUpRunnable(Engine engine, TestSuite testSuite) {
+        return () -> {
+            for (int i = 0; i < rate; ++i) {
+                // if all the workers have been created
+                if (activeThreads >= end) {
+                    rampingScheduler.shutdownNow();
 
-                        // mark workers as finished
-                        for(AsyncTestWorker testWorker : testWorkers) {
-                            testWorker.finishExecution();
-                        }
-                        break;
-                    } else {
-                        createAndExecuteWorker(engine, testSuite);
-                    }
+                    // mark workers as finished
+                    testWorkers.forEach(AsyncEngineWorker::finishExecution);
+
+                    break;
+                } else {
+                    createAndExecuteWorker(engine, testSuite);
                 }
-            }, 0, interval, TimeUnit.MILLISECONDS);
-        }
+            }
+        };
     }
 
-    private void rampDown() {
-        // every 'interval' milliseconds, we'll stop 'rate' workers
-        if (end < start) {
-            ThreadPoolExecutor executor = (ThreadPoolExecutor)testsExecutorService;
+    private Runnable getRampDownRunnable() {
+        return () -> {
+            Iterator<AsyncTestWorker> testWorkerIterator = testWorkers.iterator();
+            int toRemove = rate;
 
-            removeWorkerScheduler.scheduleAtFixedRate(() -> {
-                Iterator<AsyncTestWorker> testWorkerIterator = testWorkers.iterator();
-                int toRemove = rate;
+            while (testWorkerIterator.hasNext()) {
+                // if all the workers have been removed
+                if (activeThreads <= end) {
+                    rampingScheduler.shutdownNow();
 
-                while (testWorkerIterator.hasNext()) {
-                    // if all the workers have been removed
-                    if (activeThreads <= end) {
-                        removeWorkerScheduler.shutdownNow();
+                    // mark all the workers as finished, so the timeout checker will stop the execution
+                    testWorkers.forEach(AsyncEngineWorker::finishExecution);
 
-                        // mark all the workers as finished, so the timeout checker will stop the execution
-                        for(AsyncTestWorker testWorker : testWorkers) {
-                            testWorker.finishExecution();
-                        }
+                    break;
+                } else {
+                    AsyncTestWorker testWorker = testWorkerIterator.next();
+                    testWorker.finishExecution();
+
+                    // remove the stopped worker
+                    finishAndDeleteWorker(testWorker);
+
+                    // if rate users have been removed
+                    if (toRemove == 0) {
                         break;
-                    } else {
-                        AsyncTestWorker testWorker = testWorkerIterator.next();
-                        testWorker.finishExecution();
-
-                        // remove the stopped worker
-                        testWorkerIterator.remove();
-                        --toRemove;
-                        --activeThreads;
-
-                        // if rate users have been removed
-                        if (toRemove == 0) {
-                            break;
-                        }
                     }
                 }
-            }, 0, interval, TimeUnit.MILLISECONDS);
-        }
+            }
+        };
     }
 
     public RunContext getRunContext() {
@@ -298,13 +354,19 @@ public class Normal implements RunMode {
     }
 
     @Override
-    public void finishExecutionAndAwait() {
-        if (!addWorkerScheduler.isShutdown()) {
-            addWorkerScheduler.shutdownNow();
-        }
+    public RunModeBalancer<Normal> getRunModeBalancer() {
+        return this.normalRunModeBalancer;
+    }
 
-        if(!removeWorkerScheduler.isShutdown()) {
-            removeWorkerScheduler.shutdownNow();
+    @Override
+    public RunModeSplitter<Normal> getRunModeSplitter() {
+        return this.runModeSplitter;
+    }
+
+    @Override
+    public void finishExecutionAndAwait() {
+        if (!rampingScheduler.isShutdown()) {
+            rampingScheduler.shutdownNow();
         }
 
         synchronized (testWorkers) {
@@ -424,6 +486,10 @@ public class Normal implements RunMode {
         public boolean hasExited() {
             return exited;
         }
+    }
+
+    public long getInitialDelay() {
+        return this.initialDelay;
     }
 
 

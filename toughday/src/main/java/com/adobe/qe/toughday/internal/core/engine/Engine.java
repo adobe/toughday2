@@ -23,6 +23,7 @@ import com.adobe.qe.toughday.api.annotations.Setup;
 import com.adobe.qe.toughday.api.annotations.ConfigArgGet;
 import com.adobe.qe.toughday.internal.core.config.Configuration;
 import com.adobe.qe.toughday.internal.core.config.GlobalArgs;
+import com.adobe.qe.toughday.internal.core.distributedtd.cluster.Agent;
 import com.adobe.qe.toughday.metrics.Metric;
 import com.adobe.qe.toughday.tests.sequential.AEMTestBase;
 import com.adobe.qe.toughday.tests.utils.PackageManagerClient;
@@ -370,6 +371,7 @@ public class Engine {
                 } finally {
                     currentPhaseLock.readLock().unlock();
                 }
+
                 Engine.logGlobal("Test execution finished at: " + Engine.getCurrentDateTime());
                 LogManager.shutdown();
             }
@@ -411,7 +413,7 @@ public class Engine {
             }
 
             RunMode currentRunmode = phase.getRunMode();
-            Long currentDuration = phase.getDuration();
+            Long currentDuration = GlobalArgs.parseDurationToSeconds(phase.getDuration());
 
             currentRunmode.runTests(this);
             long start = System.currentTimeMillis();
@@ -422,6 +424,10 @@ public class Engine {
             } catch (InterruptedException e) {
                 LOG.info("Phase interrupted.");
                 long elapsed = System.currentTimeMillis() - start;
+
+                if (configuration.getDistributedConfig().getAgent()) {
+                    Agent.announcePhaseCompletion();
+                }
 
                 // if the phase finishes sooner than its duration,
                 // the remainder is split equally between the remaining phases
@@ -532,7 +538,11 @@ public class Engine {
     }
 
     public Phase getCurrentPhase() {
-        return currentPhase;
+        currentPhaseLock.readLock().lock();
+        Phase phase = currentPhase;
+        currentPhaseLock.readLock().unlock();
+
+        return phase;
     }
 
     public ReadWriteLock getCurrentPhaseLock() {

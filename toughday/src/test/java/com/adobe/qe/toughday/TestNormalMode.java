@@ -138,7 +138,7 @@ public class TestNormalMode {
         Assert.assertEquals(runMode.getStart(), 10);
         Assert.assertEquals(runMode.getEnd(), 100);
         Assert.assertEquals(runMode.getRate(), 5);
-        Assert.assertEquals(runMode.getInterval(), 60000);
+        Assert.assertEquals(runMode.getInterval(), "60s");
     }
 
     @After
