@@ -44,7 +44,7 @@ public class AsyncTimeoutChecker extends AsyncEngineWorker {
             return;
 
         Long testTimeout = currentTest.getTimeout();
-        long timeout = testTimeout >= 0 ? testTimeout : engine.getGlobalArgs().getTimeout();
+        long timeout = testTimeout >= 0 ? testTimeout : engine.getGlobalArgs().getTimeoutInSeconds();
 
         if (!worker.getMutex().tryLock()) {
             /* nothing to interrupt. if the test was running
