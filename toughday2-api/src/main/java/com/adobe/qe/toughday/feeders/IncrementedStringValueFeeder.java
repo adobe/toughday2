@@ -17,7 +17,7 @@ public class IncrementedStringValueFeeder extends StringValueFeeder {
     private AtomicLong current = new AtomicLong(0);
 
     @Override
-    public String get() throws Exception {
+    public String get(Object... keys) throws Exception {
         return super.get() + current.getAndIncrement();
     }
 

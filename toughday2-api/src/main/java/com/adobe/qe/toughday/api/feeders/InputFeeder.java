@@ -14,5 +14,5 @@ package com.adobe.qe.toughday.api.feeders;
 import com.adobe.qe.toughday.api.annotations.labels.Nullable;
 
 public interface InputFeeder<T> extends Feeder<T> {
-    @Nullable T get() throws Exception;
+    @Nullable T get(Object... keys) throws Exception;
 }

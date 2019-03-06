@@ -21,7 +21,7 @@ public class Base64DecoderFeeder extends NamedObjectImpl implements InputFeeder<
     private InputFeeder<String> input;
 
     @Override
-    public String get() throws Exception {
+    public String get(Object... keys) throws Exception {
         String current = input.get();
         if(current == null) {
             return null;

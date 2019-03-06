@@ -56,7 +56,7 @@ public class FeedersTest {
     public void testInputFeederBind1() throws Exception {
         Feeder feeder = new InputFeeder() {
             @Override
-            public Object get() throws Exception {
+            public Object get(Object... keys) throws Exception {
                 return null;
             }
 
@@ -77,7 +77,7 @@ public class FeedersTest {
         };
         mockFeederContext.put("feeder", feeder);
         args.put(Configuration.propertyFromMethod(INPUT_FEEDER1_METHOD), "feeder");
-        Configuration.setObjectProperties(test1, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test1, args, true, mockFeederContext);
         Assert.assertTrue("The configured feeder does not match!", feeder == test1.getInputFeeder1());
     }
 
@@ -89,7 +89,7 @@ public class FeedersTest {
     public void testInputFeederBind2() throws Exception {
         Feeder feeder = new InputFeeder<String>() {
             @Override
-            public String get() throws Exception {
+            public String get(Object... keys) throws Exception {
                 return null;
             }
 
@@ -110,7 +110,7 @@ public class FeedersTest {
         };
         mockFeederContext.put("feeder", feeder);
         args.put(Configuration.propertyFromMethod(INPUT_FEEDER1_METHOD), "feeder");
-        Configuration.setObjectProperties(test1, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test1, args, true, mockFeederContext);
         Assert.assertTrue("The configured feeder does not match!", feeder == test1.getInputFeeder1());
     }
 
@@ -122,7 +122,7 @@ public class FeedersTest {
     public void testInputFeederWithGenericsBind() throws Exception {
         Feeder feeder = new InputFeeder<Map>() {
             @Override
-            public Map get() throws Exception {
+            public Map get(Object... keys) throws Exception {
                 return null;
             }
 
@@ -143,7 +143,7 @@ public class FeedersTest {
         };
         mockFeederContext.put("feeder", feeder);
         args.put(Configuration.propertyFromMethod(INPUT_FEEDER2_METHOD), "feeder");
-        Configuration.setObjectProperties(test1, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test1, args, true, mockFeederContext);
         Assert.assertTrue("The configured feeder does not match!", feeder == test1.getInputFeeder2());
     }
 
@@ -171,14 +171,14 @@ public class FeedersTest {
             }
 
             @Override
-            public List<List> get() throws Exception {
+            public List<List> get(Object... keys) throws Exception {
                 return null;
             }
         };
 
         mockFeederContext.put("feeder", feeder);
         args.put(Configuration.propertyFromMethod(INPUT_FEEDER2_METHOD), "feeder");
-        Configuration.setObjectProperties(test1, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test1, args, true, mockFeederContext);
     }
 
     /**
@@ -206,13 +206,13 @@ public class FeedersTest {
             }
 
             @Override
-            public void push(Object item) throws Exception {
+            public void push(Object item, Object... keys) throws Exception {
 
             }
         };
         mockFeederContext.put("feeder", feeder);
         args.put(Configuration.propertyFromMethod(INPUT_FEEDER1_METHOD), "feeder");
-        Configuration.setObjectProperties(test1, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test1, args, true, mockFeederContext);
     }
 
     /**
@@ -223,7 +223,7 @@ public class FeedersTest {
     public void testOutputFeederBind1() throws Exception {
         Feeder feeder = new OutputFeeder() {
             @Override
-            public void push(Object item) throws Exception {
+            public void push(Object item, Object... keys) throws Exception {
 
             }
 
@@ -244,7 +244,7 @@ public class FeedersTest {
         };
         mockFeederContext.put("feeder", feeder);
         args.put(Configuration.propertyFromMethod(OUTPUT_FEEDER1_METHOD), "feeder");
-        Configuration.setObjectProperties(test1, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test1, args, true, mockFeederContext);
         Assert.assertTrue("The configured feeder does not match!", feeder == test1.getOutputFeeder1());
     }
 
@@ -272,13 +272,13 @@ public class FeedersTest {
             }
 
             @Override
-            public void push(String item) throws Exception {
+            public void push(String item, Object... keys) throws Exception {
 
             }
         };
         mockFeederContext.put("feeder", feeder);
         args.put(Configuration.propertyFromMethod(OUTPUT_FEEDER1_METHOD), "feeder");
-        Configuration.setObjectProperties(test1, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test1, args, true, mockFeederContext);
         Assert.assertTrue("The configured feeder does not match!", feeder == test1.getOutputFeeder1());
     }
 
@@ -305,13 +305,13 @@ public class FeedersTest {
             }
 
             @Override
-            public void push(List item) throws Exception {
+            public void push(List item, Object... keys) throws Exception {
 
             }
         };
         mockFeederContext.put("feeder", feeder);
         args.put(Configuration.propertyFromMethod(OUTPUT_FEEDER2_METHOD), "feeder");
-        Configuration.setObjectProperties(test1, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test1, args, true, mockFeederContext);
         Assert.assertTrue("The configured feeder does not match!", feeder == test1.getOutputFeeder2());
     }
 
@@ -340,14 +340,14 @@ public class FeedersTest {
             }
 
             @Override
-            public void push(Map item) throws Exception {
+            public void push(Map item, Object... keys) throws Exception {
 
             }
         };
 
         mockFeederContext.put("feeder", feeder);
         args.put(Configuration.propertyFromMethod(OUTPUT_FEEDER2_METHOD), "feeder");
-        Configuration.setObjectProperties(test1, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test1, args, true, mockFeederContext);
     }
 
     /**
@@ -359,7 +359,7 @@ public class FeedersTest {
     public void testOutputInputMismatch() throws Exception {
         Feeder feeder = new InputFeeder() {
             @Override
-            public Object get() throws Exception {
+            public Object get(Object... keys) throws Exception {
                 return null;
             }
 
@@ -380,7 +380,7 @@ public class FeedersTest {
         };
         mockFeederContext.put("feeder", feeder);
         args.put(Configuration.propertyFromMethod(OUTPUT_FEEDER1_METHOD), "feeder");
-        Configuration.setObjectProperties(test1, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test1, args, true, mockFeederContext);
     }
 
     /**
@@ -389,7 +389,7 @@ public class FeedersTest {
     @Test(expected = IllegalStateException.class)
     public void testFeederNotFound() throws Exception {
         args.put(Configuration.propertyFromMethod(OUTPUT_FEEDER1_METHOD), "feeder");
-        Configuration.setObjectProperties(test1, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test1, args, true, mockFeederContext);
     }
 
     /**
@@ -400,7 +400,7 @@ public class FeedersTest {
     public void testRequiredInputFeeder() throws Exception {
         Feeder feeder = new InputFeeder() {
             @Override
-            public Object get() throws Exception {
+            public Object get(Object... keys) throws Exception {
                 return null;
             }
 
@@ -421,7 +421,7 @@ public class FeedersTest {
         };
         mockFeederContext.put("feeder", feeder);
         args.put(Configuration.propertyFromMethod(REQUIRED_INPUT_FEEDER), "feeder");
-        Configuration.setObjectProperties(test2, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test2, args, true, mockFeederContext);
     }
 
     /**
@@ -430,13 +430,13 @@ public class FeedersTest {
      */
     @Test(expected = IllegalStateException.class)
     public void testRequiredInputFeederMissing() throws Exception {
-        Configuration.setObjectProperties(test2, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test2, args, true, mockFeederContext);
     }
 
 
     @Test
     public void testNoopReplacement1() throws Throwable {
-        Configuration.setObjectProperties(test3, args, true, mockFeederContext);
+        new Configuration(new String[] {"--host=localhost"}).setObjectProperties(test3, args, true, mockFeederContext);
         Assert.assertTrue("Feeder was not replaced with NoopFeeder", test3.getOptionalNoopReplacementInputFeeder1().equals(NoopFeeder.INSTANCE));
         Assert.assertTrue("Feeder with generics was not replaced with NoopFeeder", test3.getOptionalNoopReplacementInputFeeder2().equals(NoopFeeder.INSTANCE));
         Assert.assertTrue("Feeder with allowNoopReplacement=false should not be replaced", test3.getOptionalNoReplacementInputFeeder() == null);

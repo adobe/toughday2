@@ -44,7 +44,7 @@ public class ListFeeder extends NamedObjectImpl implements InputFeeder<String> {
     }
 
     @Override
-    public String get() throws Exception {
+    public String get(Object... keys) throws Exception {
         return values.get(idx.getAndUpdate(i -> (i + 1) % values.size()));
     }
 

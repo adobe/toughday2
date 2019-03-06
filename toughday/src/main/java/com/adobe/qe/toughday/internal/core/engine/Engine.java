@@ -449,7 +449,6 @@ public class Engine {
                 resultAggregator.aggregateResults();
                 phase.getPublishMode().publishFinalResults(resultAggregator.filterResults());
             }
-
         }
 
         testsRunning = false;

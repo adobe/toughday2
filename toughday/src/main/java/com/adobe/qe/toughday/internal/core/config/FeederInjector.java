@@ -25,7 +25,12 @@ import java.util.Map;
 
 public class FeederInjector {
 
-    public static <T> void injectFeeder(Method method, T object, Map<String, Object> args, boolean applyDefaults, Map<String, Feeder> feederContext) throws InvocationTargetException, IllegalAccessException {
+    public static <T> void injectFeeder(Method method,
+                                        T object,
+                                        Map<String, Object> args,
+                                        boolean applyDefaults,
+                                        Map<String, Feeder> feederContext,
+                                        Map<String, Object> items) throws InvocationTargetException, IllegalAccessException {
 
         if (method.getAnnotation(FeederSet.class) == null) {
             //This method is not a feeder inject
@@ -48,7 +53,8 @@ public class FeederInjector {
         }
 
         String feederName = value.toString();
-        Feeder feeder = feederContext.get(feederName);
+        Feeder feeder = getFeederByName(feederName, feederContext, items);
+
         assertion(feeder != null, "Cloud not configure object of class: " + object.getClass() + ". Cloud not bind feeder for: " + property + ". Feeder not found, or not yet declared.");
 
         if (InputFeeder.class.isAssignableFrom(method.getParameterTypes()[0])) {
@@ -75,6 +81,30 @@ public class FeederInjector {
         }
 
         method.invoke(object, feeder);
+    }
+
+    private static Feeder getFeederByName(String feederName, Map<String, Feeder> feederContext, Map<String, Object> items) {
+        if(!feederName.contains(".")) {
+            return feederContext.get(feederName);
+        }
+
+        String[] info = feederName.split("\\.");
+        String objectName = info[0];
+        String methodName = info[1];
+
+        Object object  = items.get(objectName);
+        String getter = "get" + methodName.substring(0, 1).toUpperCase() + methodName.substring(1);
+        try {
+            Method method = object.getClass().getMethod(getter);
+            return (Feeder) method.invoke(object);
+        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {}
+
+        try {
+            Method method = object.getClass().getMethod(feederName);
+            return (Feeder) method.invoke(object);
+        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {}
+
+        return null;
     }
 
     private static void assertion(boolean value, String message) {

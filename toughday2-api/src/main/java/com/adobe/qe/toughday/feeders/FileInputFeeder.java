@@ -55,7 +55,7 @@ public class FileInputFeeder extends NamedObjectImpl implements InputFeeder<Stri
     }
 
     @Override
-    public String get() throws Exception {
+    public String get(Object... keys) throws Exception {
         // if the file can be cached
         if(cacheable && cached) {
             return fileContent.get(idx.getAndUpdate(i -> (i + 1) % fileContent.size()));

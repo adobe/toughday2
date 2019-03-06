@@ -12,5 +12,5 @@ governing permissions and limitations under the License.
 package com.adobe.qe.toughday.api.feeders;
 
 public interface OutputFeeder<T> extends Feeder<T> {
-    void push(T item) throws Exception;
+    void push(T item, Object... keys) throws Exception;
 }

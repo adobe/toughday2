@@ -38,6 +38,7 @@ import org.reflections.Reflections;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -74,6 +75,7 @@ public class Configuration {
     private boolean anyPublisherAdded = false;
     private boolean allTestsExcluded = false;
     private Map<String, Feeder> feeders = new LinkedHashMap<>();
+    private Map<String, Object> objects = new HashMap<>();
 
     private void handleExtensions(ConfigParams configParams) {
         List<String> extensionList = new ArrayList<>();
@@ -230,6 +232,7 @@ public class Configuration {
             GenerateYamlConfiguration generateYaml = new GenerateYamlConfiguration(copyOfConfigParams, items);
             generateYaml.createYamlConfigurationFile();
         }
+        objects = null;
     }
 
     private void createPhases(ConfigParams configParams, TestSuite globalSuite, Map<String, Class> items) throws NoSuchMethodException,
@@ -434,6 +437,7 @@ public class Configuration {
             AbstractTest test = createObject(ReflectionsContainer.getInstance().getTestClass(itemToAdd.getClassName()), itemToAdd.getParameters(), feeders);
             suite.add(test);
             items.put(test.getName(), test.getClass());
+            objects.put(test.getName(), test);
         } else if (ReflectionsContainer.getInstance().isPublisherClass(itemToAdd.getClassName())) {
             Publisher publisher = createObject(
                     ReflectionsContainer.getInstance().getPublisherClass(itemToAdd.getClassName()),
@@ -459,7 +463,7 @@ public class Configuration {
         } else if (ReflectionsContainer.getInstance().isFeederClass(itemToAdd.getClassName())) {
             Feeder feeder = createObject(
                     ReflectionsContainer.getInstance().getFeederClass(itemToAdd.getClassName()),
-                    itemToAdd.getParameters());
+                    itemToAdd.getParameters(), feeders);
             items.put(feeder.getName(), feeder.getClass());
 
             if (feeders.containsKey(feeder.getName())) {
@@ -518,11 +522,13 @@ public class Configuration {
 
             //check if all were excluded
             AbstractTest testObject = suite.getTest(itemMeta.getName());
+            objects.remove(testObject.getName());
             int index = suite.remove(testObject);
             setObjectProperties(testObject, itemMeta.getParameters(), false, feeders);
             suite.add(testObject, index);
 
             items.put(testObject.getName(), testObject.getClass());
+            objects.put(testObject.getName(), testObject);
         } else if (publishers.containsKey(itemMeta.getName())) {
             Publisher publisherObject = publishers.get(itemMeta.getName());
             String name = publisherObject.getName();
@@ -571,6 +577,7 @@ public class Configuration {
             if (suite.getTests().isEmpty()) {
                 allTestsExcluded = true;
             }
+            objects.remove(itemName);
         } else if (publishers.containsKey(itemName)) {
             publishers.remove(itemName);
         } else if (metrics.containsKey(itemName)) {
@@ -628,12 +635,12 @@ public class Configuration {
      * @throws IllegalAccessException    caused by reflection
      */
     //TODO figure out if we can make this public static again
-    public static   <T> T setObjectProperties(T object, Map<String, Object> args, boolean applyDefaults, Map<String, Feeder> feedersContext) throws InvocationTargetException, IllegalAccessException {
+    public  <T> T setObjectProperties(T object, Map<String, Object> args, boolean applyDefaults, Map<String, Feeder> feedersContext) throws InvocationTargetException, IllegalAccessException {
         Class classObject = object.getClass();
         LOGGER.info("Configuring object of class: " + classObject.getSimpleName()+" ["+classObject.getName()+"]");
         for (Method method : classObject.getMethods()) {
             callConfigArgSet(method, object, args, applyDefaults);
-            FeederInjector.injectFeeder(method, object, args, applyDefaults, feedersContext);
+            FeederInjector.injectFeeder(method, object, args, applyDefaults, feedersContext, objects);
         }
         return object;
     }
@@ -676,7 +683,7 @@ public class Configuration {
         }
     }
 
-    public static  <T> T createObject(Class<? extends T> classObject, Map<String, Object> args)
+    public  <T> T createObject(Class<? extends T> classObject, Map<String, Object> args)
             throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
         return createObject(classObject, args, null);
     }
@@ -693,7 +700,7 @@ public class Configuration {
      * @throws InstantiationException
      * @throws NoSuchMethodException
      */
-    public static  <T> T createObject(Class<? extends T> classObject, Map<String, Object> args, Map<String, Feeder> feederContext)
+    public  <T> T createObject(Class<? extends T> classObject, Map<String, Object> args, Map<String, Feeder> feederContext)
             throws IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchMethodException {
 
         Constructor constructor = null;

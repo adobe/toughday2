@@ -28,7 +28,7 @@ public class QueueCommunicationFeeder extends NamedObjectImpl implements InputFe
     private int maxSize;
 
     @Override
-    public String get() throws Exception {
+    public String get(Object... keys) throws Exception {
         rwLock.readLock().lock();
         try {
             return channel.poll();
@@ -38,7 +38,7 @@ public class QueueCommunicationFeeder extends NamedObjectImpl implements InputFe
     }
 
     @Override
-    public void push(String item) throws Exception {
+    public void push(String item, Object... keys) throws Exception {
         if(channel.size() > maxSize) {
             rwLock.writeLock().lock();
             try {

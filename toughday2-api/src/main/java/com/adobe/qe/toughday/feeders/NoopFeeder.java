@@ -15,18 +15,18 @@ import com.adobe.qe.toughday.api.core.NamedObjectImpl;
 import com.adobe.qe.toughday.api.feeders.InputFeeder;
 import com.adobe.qe.toughday.api.feeders.OutputFeeder;
 
-public final class NoopFeeder extends NamedObjectImpl implements InputFeeder, OutputFeeder {
+public final class NoopFeeder extends NamedObjectImpl implements InputFeeder<Object>, OutputFeeder<Object> {
 
     public static final NoopFeeder INSTANCE = new NoopFeeder();
 
     @Override
-    public Object get() throws Exception {
+    public Object get(Object... keys) throws Exception {
         //no - op
         return null;
     }
 
     @Override
-    public void push(Object item) throws Exception {
+    public void push(Object item, Object... keys) throws Exception {
         //no - op
     }
 

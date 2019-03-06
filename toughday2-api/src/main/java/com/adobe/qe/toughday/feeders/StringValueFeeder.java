@@ -41,7 +41,7 @@ public class StringValueFeeder extends NamedObjectImpl implements InputFeeder<St
     }
 
     @Override
-    public String get() throws Exception {
+    public String get(Object... keys) throws Exception {
         return this.value;
     }
 }
