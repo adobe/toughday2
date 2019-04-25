@@ -250,6 +250,9 @@ public class CliParser implements ConfigurationParser {
                 } else if (arg.equals("runmode")) {
                     skip = parseObjectProperties(i+1, cmdLineArgs, args);
                     configParams.setRunModeParams(args);
+                } else if (arg.equals("help")) {
+                    skip = 1;
+                    globalArgs.put("host", "N/A"); //TODO remove ugly hack
                 } else {
                     String[] res = parseProperty(arg);
                     String key = res[0];
