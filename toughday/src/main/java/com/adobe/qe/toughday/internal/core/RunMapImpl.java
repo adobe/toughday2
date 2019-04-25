@@ -82,7 +82,6 @@ public class RunMapImpl implements RunMap {
         }
     }
 
-
     public TestStatistics getRecord(AbstractTest test) {
         runMapLock.readLock().lock();
         try {

@@ -20,6 +20,7 @@ import com.adobe.qe.toughday.internal.core.ReflectionsContainer;
 import com.adobe.qe.toughday.internal.core.TestSuite;
 import com.adobe.qe.toughday.internal.core.config.parsers.cli.CliParser;
 import com.adobe.qe.toughday.internal.core.config.parsers.yaml.YamlParser;
+import com.adobe.qe.toughday.internal.core.engine.Phase;
 import com.adobe.qe.toughday.internal.core.engine.PublishMode;
 import com.adobe.qe.toughday.internal.core.engine.RunMode;
 import com.adobe.qe.toughday.metrics.Metric;
@@ -43,6 +44,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -54,17 +56,22 @@ public class Configuration {
 
     private static final String DEFAULT_RUN_MODE = "normal";
     private static final String DEFAULT_PUBLISH_MODE = "simple";
-    PredefinedSuites predefinedSuites = new PredefinedSuites();
+    private static Map<Object, HashSet<String>> requiredFieldsForClassAdded = new HashMap<>();
+    private static String TIMESTAMP = Timestamp.START_TIME;
+
+    private PredefinedSuites predefinedSuites = new PredefinedSuites();
     private GlobalArgs globalArgs;
-    private TestSuite suite;
     private RunMode runMode;
     private PublishMode publishMode;
+    private TestSuite globalSuite;
+    private Map<String, Publisher> globalPublishers = new HashMap<>();
+    private Map<String, Metric> globalMetrics = new LinkedHashMap<>();
+    private List<Phase> phases = new ArrayList<>();
+    private Set<Phase> phasesWithoutDuration = new HashSet<>();
     private boolean defaultSuiteAddedFromConfigExclude = false;
     private boolean anyMetricAdded = false;
     private boolean anyPublisherAdded = false;
     private boolean allTestsExcluded = false;
-    private static Map<Object, HashSet<String>> requiredFieldsForClassAdded = new HashMap<>();
-    private static String TIMESTAMP = Timestamp.START_TIME;
 
     private void handleExtensions(ConfigParams configParams) {
         List<String> extensionList = new ArrayList<>();
@@ -149,7 +156,6 @@ public class Configuration {
 
     private ClassLoader processJarFiles(List<JarFile> jarFiles, URL[] urls) throws MalformedURLException {
         ToughdayExtensionClassLoader classLoader = new ToughdayExtensionClassLoader(urls, Thread.currentThread().getContextClassLoader());
-        
         Map<String, String> newClasses = new HashMap<>();
         Thread.currentThread().setContextClassLoader(classLoader);
 
@@ -207,60 +213,15 @@ public class Configuration {
 
         applyLogLevel(globalArgs.getLogLevel());
 
-        this.runMode = getRunMode(configParams);
-        this.publishMode = getPublishMode(configParams);
-        suite = getTestSuite(globalArgsMeta);
+        this.runMode = getRunMode(new HashMap<>(configParams.getRunModeParams()));
+        this.publishMode = getPublishMode(new HashMap<>(configParams.getPublishModeParams()));
+        globalSuite = getTestSuite(globalArgsMeta);
 
-        for (AbstractTest abstractTest : suite.getTests()) {
-            items.put(abstractTest.getName(), abstractTest.getClass());
-        }
+        convertActionItems(configParams.getItems(), items, globalSuite, globalPublishers, globalMetrics);
 
-        for (Map.Entry<Actions, ConfigParams.MetaObject> item : configParams.getItems()) {
-            switch (item.getKey()) {
-                case ADD:
-                    addItem((ConfigParams.ClassMetaObject) item.getValue(), items);
-                    break;
-                case CONFIG:
-                    configItem((ConfigParams.NamedMetaObject) item.getValue(), items);
-                    break;
-                case EXCLUDE:
-                    excludeItem(((ConfigParams.NamedMetaObject)item.getValue()).getName());
-                    break;
-            }
-        }
-
-        // Add default publishers if none is specified
-        if (!anyPublisherAdded) {
-            Publisher publisher = createObject(ConsolePublisher.class, new HashMap<String, Object>());
-            items.put(publisher.getName(), publisher.getClass());
-            this.globalArgs.addPublisher(publisher);
-            publisher = createObject(CSVPublisher.class, new HashMap<String, Object>() {{
-                put("append", "true");
-            }});
-            items.put(publisher.getName(), publisher.getClass());
-            this.globalArgs.addPublisher(publisher);
-        }
-
-        // Add a default suite of tests if no test is added or no predefined suite is choosen.
-        if (!defaultSuiteAddedFromConfigExclude && suite.getTests().size() == 0) {
-            // Replace the empty suite with the default predefined suite if no test has been configured,
-            // either by selecting a suite or manually using --add
-            this.suite = predefinedSuites.getDefaultSuite();
-        }
-
-        // Add default metrics if no metric is specified.
-        // TODO add better fix here?
-        if (!anyMetricAdded) {
-            Collection<Metric> defaultMetrics = Metric.defaultMetrics;
-            for (Metric metric : defaultMetrics) {
-                this.globalArgs.addMetric(metric);
-            }
-        }
+        createPhases(configParams, globalSuite, items);
 
         checkInvalidArgs(globalArgsMeta, CliParser.parserArgs);
-        for (AbstractTest test : suite.getTests()) {
-            test.setGlobalArgs(this.globalArgs);
-        }
 
         // Check if we should create a configuration file for this run.
         if (this.getGlobalArgs().getSaveConfig()) {
@@ -269,8 +230,200 @@ public class Configuration {
         }
     }
 
-    private void addItem(ConfigParams.ClassMetaObject itemToAdd, Map<String, Class> items) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        if (ReflectionsContainer.getInstance().isTestClass(itemToAdd.getClassName())) {
+    private void createPhases(ConfigParams configParams, TestSuite globalSuite, Map<String, Class> items) throws NoSuchMethodException,
+            InstantiationException, IllegalAccessException, InvocationTargetException {
+
+        // if there were no phases configured, create a phase that has the global configuration
+        if (configParams.getPhasesParams().isEmpty()) {
+            Phase phase = createPhase(configParams, new PhaseParams(), globalSuite, globalPublishers, globalMetrics, items);
+            phases.add(phase);
+            configureDurationForPhases();
+
+            return;
+        }
+
+        // map names to phases to keep track of them
+        for (PhaseParams phaseParams : configParams.getPhasesParams()) {
+            if (phaseParams.getProperties().get("name") != null) {
+                if (PhaseParams.namedPhases.containsKey(phaseParams.getProperties().get("name").toString())) {
+                    throw new IllegalArgumentException("There is already a phase named \"" + phaseParams.getProperties().get("name") + "\".");
+                }
+
+                PhaseParams.namedPhases.put(phaseParams.getProperties().get("name").toString(), phaseParams);
+            }
+        }
+
+        // configure all the phases based on their params
+        for (PhaseParams phaseParams : configParams.getPhasesParams()) {
+            defaultSuiteAddedFromConfigExclude = false;
+            allTestsExcluded = false;
+            anyMetricAdded = false;
+            anyPublisherAdded = false;
+
+            getConfigurationFromAnotherPhase(phaseParams);
+
+            TestSuite suite = new TestSuite();
+            for (AbstractTest test : globalSuite.getTests()) {
+                suite.add(test.clone());
+            }
+
+            Map<String, Publisher> publishers = new HashMap<>(globalPublishers);
+            Map<String, Metric> metrics = new LinkedHashMap<>(globalMetrics);
+
+            convertActionItems(phaseParams.getItems(), items, suite, publishers, metrics);
+
+            Phase phase = createPhase(configParams, phaseParams, suite, publishers, metrics, items);
+
+            phases.add(phase);
+        }
+
+        configureDurationForPhases();
+    }
+
+    private Phase createPhase(ConfigParams configParams, PhaseParams phaseParams, TestSuite suite, Map<String, Publisher> publishers,
+                              Map<String, Metric> metrics, Map<String, Class> items) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        // if no run mode was provided in the phase, get the global one
+        if (phaseParams.getRunmode().isEmpty()) {
+            phaseParams.setRunmode(configParams.getRunModeParams());
+        }
+
+        // if no publish mode was provided in the phase, get the global one
+        if (phaseParams.getPublishmode().isEmpty()) {
+            phaseParams.setPublishmode(configParams.getPublishModeParams());
+        }
+
+        // Add a default suite of tests if no test is added or no predefined suite is chosen.
+        if (!defaultSuiteAddedFromConfigExclude && suite.getTests().size() == 0) {
+            // Replace the empty suite with the default predefined suite if no test has been configured,
+            // either by selecting a suite or manually using --add
+            suite = predefinedSuites.getDefaultSuite();
+        }
+
+        RunMode runMode = getRunMode(new HashMap<>(phaseParams.getRunmode()));
+        PublishMode publishMode = getPublishMode(new HashMap<>(phaseParams.getPublishmode()));
+
+        Phase phase = createObject(Phase.class, phaseParams.getProperties());
+        checkInvalidArgs(phaseParams.getProperties());
+
+        phase.setTestSuite(suite);
+        phase.setRunMode(runMode);
+        phase.setPublishMode(publishMode);
+
+        // compute the minimum timeout of the phase
+        phase.getTestSuite().setMinTimeout(globalArgs.getTimeout());
+        for(AbstractTest test : phase.getTestSuite().getTests()) {
+            // set the count (the number of executions since the beginnin of the run) of each test to 0
+            phase.getCounts().put(test, new AtomicLong(0));
+
+            // set the global args
+            test.setGlobalArgs(globalArgs);
+
+            items.put(test.getName(), test.getClass());
+
+            if(test.getTimeout() < 0) {
+                continue;
+            }
+
+            // update test suite minimum timeout
+            phase.getTestSuite().setMinTimeout(Math.min(phase.getTestSuite().getMinTimeout(), test.getTimeout()));
+        }
+
+        // Add default publishers if none is specified
+        if (!anyPublisherAdded && publishers.isEmpty()) {
+            Publisher publisher = createObject(ConsolePublisher.class, new HashMap<String, Object>());
+            items.put(publisher.getName(), publisher.getClass());
+            publishers.put(publisher.getName(), publisher);
+            publisher = createObject(CSVPublisher.class, new HashMap<String, Object>() {{
+                put("append", "true");
+            }});
+            items.put(publisher.getName(), publisher.getClass());
+            publishers.put(publisher.getName(), publisher);
+        }
+
+        // Add default metrics if no metric is specified.
+        // TODO add better fix here?
+        if (!anyMetricAdded && metrics.isEmpty()) {
+            Collection<Metric> defaultMetrics = Metric.defaultMetrics;
+            for (Metric metric : defaultMetrics) {
+                metrics.put(metric.getName(), metric);
+            }
+        }
+
+        phase.setPublishers(publishers);
+        phase.setMetrics(metrics);
+
+        return phase;
+    }
+
+    private void getConfigurationFromAnotherPhase(PhaseParams phaseParams) {
+        String useconfig = null;
+        // if 'useconfig' is given as input
+        if (phaseParams.getProperties().get("useconfig") != null) {
+            useconfig = phaseParams.getProperties().get("useconfig").toString();
+            if (!PhaseParams.namedPhases.containsKey(useconfig)) {
+                throw new IllegalArgumentException("Could not find phase named \"" + useconfig + "\".");
+            }
+
+            String name = phaseParams.getProperties().get("name").toString();
+
+            // merge the current phase with the one whose name is the value of 'useconfig'
+            phaseParams.merge(PhaseParams.namedPhases.get(useconfig),
+                        new HashSet<>(Arrays.asList(name, useconfig)));
+
+        }
+    }
+
+    private void convertActionItems(List<Map.Entry<Actions, ConfigParams.MetaObject>> actionItems,
+                                    Map<String, Class> items, TestSuite testSuite,
+                                    Map<String, Publisher> publishers, Map<String, Metric> metrics) throws InvocationTargetException, IllegalAccessException, NoSuchMethodException, InstantiationException {
+        for (Map.Entry<Actions, ConfigParams.MetaObject> item : actionItems) {
+            switch (item.getKey()) {
+                case ADD:
+                    addItem((ConfigParams.ClassMetaObject) item.getValue(), items, testSuite, publishers, metrics);
+                    break;
+                case CONFIG:
+                    configItem((ConfigParams.NamedMetaObject) item.getValue(), items, testSuite, publishers, metrics);
+                    break;
+                case EXCLUDE:
+                    excludeItem(((ConfigParams.NamedMetaObject)item.getValue()).getName(), testSuite, publishers, metrics);
+                    break;
+            }
+        }
+    }
+
+    private void configureDurationForPhases() {
+        long durationLeft = globalArgs.getDuration();
+
+        // subtract from durationLeft the duration of each phase
+        // if it was given as input
+        for (Phase phase : phases) {
+            if (phase.getDuration() == null) {
+                phasesWithoutDuration.add(phase);
+            } else {
+                durationLeft -= phase.getDuration();
+            }
+        }
+
+        if (durationLeft < 0) {
+            throw new IllegalArgumentException("The sum of the phase durations is greater than the global one.");
+        }
+
+        // if there is at least one phase whose duration was not specified,
+        // share the duration left between them equally
+        if (phasesWithoutDuration.size() != 0) {
+            long durationPerPhase = durationLeft / phasesWithoutDuration.size();
+            if (durationPerPhase < 1) {
+                throw new IllegalArgumentException("The duration left for the phases for which it is not specified is too small. Please make sure there is enough time left for those, as well.");
+            }
+            for (Phase phase : phasesWithoutDuration) {
+                phase.setDuration(String.valueOf(durationPerPhase) + "s");
+            }
+        }
+    }
+
+    private void addItem(ConfigParams.ClassMetaObject itemToAdd, Map<String, Class> items, TestSuite suite,
+                         Map<String, Publisher> publishers, Map<String, Metric> metrics) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+        if (ReflectionsContainer.getInstance().isTestClass(itemToAdd.getClassName()) && suite != null) {
             if (defaultSuiteAddedFromConfigExclude) {
                 throw new IllegalStateException("Configuration/exclusion of test ahead of addition");
             }
@@ -279,28 +432,35 @@ public class Configuration {
             AbstractTest test = createObject(ReflectionsContainer.getInstance().getTestClass(itemToAdd.getClassName()), itemToAdd.getParameters());
             suite.add(test);
             items.put(test.getName(), test.getClass());
-            checkInvalidArgs(itemToAdd.getParameters());
         } else if (ReflectionsContainer.getInstance().isPublisherClass(itemToAdd.getClassName())) {
             Publisher publisher = createObject(
                     ReflectionsContainer.getInstance().getPublisherClass(itemToAdd.getClassName()),
                     itemToAdd.getParameters());
             items.put(publisher.getName(), publisher.getClass());
 
-            checkInvalidArgs(itemToAdd.getParameters());
-            this.globalArgs.addPublisher(publisher);
+            if (publishers.containsKey(publisher.getName())) {
+                throw new IllegalStateException("There is already a publisher named \"" + publisher.getName() + "\"." +
+                        "Please provide a different name using the \"name\" property.");
+            }
+            publishers.put(publisher.getName(), publisher);
             anyPublisherAdded = true;
         } else if (ReflectionsContainer.getInstance().isMetricClass(itemToAdd.getClassName())) {
             Metric metric = createObject(ReflectionsContainer.getInstance().getMetricClass(itemToAdd.getClassName()),
                     itemToAdd.getParameters());
             items.put(metric.getName(), metric.getClass());
 
-            checkInvalidArgs(itemToAdd.getParameters());
-            this.globalArgs.addMetric(metric);
+            if (metrics.containsKey(metric.getName())) {
+                LOGGER.warn("A metric with this name was already added. Only the last one is taken into consideration.");
+            }
+            metrics.put(metric.getName(), metric);
             anyMetricAdded = true;
         } else if (itemToAdd.getClassName().equals("BASICMetrics")) {
             Collection<Metric> basicMetrics = Metric.basicMetrics;
             for (Metric metric : basicMetrics) {
-                this.globalArgs.addMetric(metric);
+                if (metrics.containsKey(metric.getName())) {
+                    LOGGER.warn("A metric with this name was already added. Only the last one is taken into consideration.");
+                }
+                metrics.put(metric.getName(), metric);
                 items.put(metric.getName(), metric.getClass());
             }
             anyMetricAdded = true;
@@ -308,56 +468,63 @@ public class Configuration {
             Collection<Metric> defaultMetrics = Metric.defaultMetrics;
 
             for (Metric metric : defaultMetrics) {
-                this.globalArgs.addMetric(metric);
+                if (metrics.containsKey(metric.getName())) {
+                    LOGGER.warn("A metric with this name was already added. Only the last one is taken into consideration.");
+                }
+                metrics.put(metric.getName(), metric);
                 items.put(metric.getName(), metric.getClass());
             }
             anyMetricAdded = true;
         } else {
             throw new IllegalArgumentException("Unknown publisher, test or metric class: " + itemToAdd.getClassName());
         }
+
+        checkInvalidArgs(itemToAdd.getParameters());
     }
 
-    private void configItem(ConfigParams.NamedMetaObject itemMeta, Map<String, Class> items) throws InvocationTargetException, IllegalAccessException {
+    private void configItem(ConfigParams.NamedMetaObject itemMeta, Map<String, Class> items, TestSuite suite,
+                            Map<String, Publisher> publishers, Map<String, Metric> metrics) throws InvocationTargetException, IllegalAccessException {
         // if the suite does not contain the provided name, it might be
         // a publisher/metric (class) name OR, in case no tests have been added,
         // the name of a test from the default suite
         // if the latter is the case, the default suite has to be added in the configuration
         // defaultSuiteAddedFromConfigExclude will mark this occurrence and, if it is set to
         // true, attempting to --add a test after this will cause an exception to be thrown
-        if (!suite.contains(itemMeta.getName())
+        if (suite != null && !suite.contains(itemMeta.getName())
                 && !ReflectionsContainer.getInstance().isMetricClass(itemMeta.getName())
                 && !ReflectionsContainer.getInstance().isPublisherClass(itemMeta.getName())
-                && !globalArgs.containsPublisher(itemMeta.getName())
-                && !globalArgs.containsMetric(itemMeta.getName())
+                && !publishers.containsKey(itemMeta.getName())
+                && !metrics.containsKey(itemMeta.getName())
                 && !allTestsExcluded
                 && suite.getTests().isEmpty()) {
-            this.suite = predefinedSuites.getDefaultSuite();
+            suite = predefinedSuites.getDefaultSuite();
             defaultSuiteAddedFromConfigExclude = true;
         }
 
-        if (suite.contains(itemMeta.getName())) {
+        if (suite != null && suite.contains(itemMeta.getName())) {
 
             //check if all were excluded
             AbstractTest testObject = suite.getTest(itemMeta.getName());
             int index = suite.remove(testObject);
             setObjectProperties(testObject, itemMeta.getParameters(), false);
             suite.add(testObject, index);
+
             items.put(testObject.getName(), testObject.getClass());
-        } else if (globalArgs.containsPublisher(itemMeta.getName())) {
-            Publisher publisherObject = globalArgs.getPublisher(itemMeta.getName());
+        } else if (publishers.containsKey(itemMeta.getName())) {
+            Publisher publisherObject = publishers.get(itemMeta.getName());
             String name = publisherObject.getName();
             setObjectProperties(publisherObject, itemMeta.getParameters(), false);
             if (!name.equals(publisherObject.getName())) {
-                this.getGlobalArgs().updatePublisherName(name, publisherObject.getName());
+                publishers.put(publisherObject.getName(), publishers.remove(name));
             }
 
             items.put(name, publisherObject.getClass());
-        } else if (globalArgs.containsMetric(itemMeta.getName())) {
-            Metric metricObject = globalArgs.getMetric(itemMeta.getName());
+        } else if (metrics.containsKey(itemMeta.getName())) {
+            Metric metricObject = metrics.get(itemMeta.getName());
             String name = metricObject.getName();
             setObjectProperties(metricObject, itemMeta.getParameters(), false);
             if (!name.equals(metricObject.getName())) {
-                this.getGlobalArgs().updateMetricName(name, metricObject.getName());
+                metrics.put(metricObject.getName(), metrics.remove(name));
             }
 
             items.put(name, metricObject.getClass());
@@ -368,25 +535,25 @@ public class Configuration {
         checkInvalidArgs(itemMeta.getParameters());
     }
 
-    private void excludeItem(String itemName) {
-        if (!suite.contains(itemName) && !allTestsExcluded && suite.getTests().isEmpty()
+    private void excludeItem(String itemName, TestSuite suite, Map<String, Publisher> publishers, Map<String, Metric> metrics) {
+        if (suite != null && !suite.contains(itemName) && !allTestsExcluded && suite.getTests().isEmpty()
                 && !ReflectionsContainer.getInstance().isPublisherClass(itemName)
                 && !ReflectionsContainer.getInstance().isMetricClass(itemName)
-                && !globalArgs.containsMetric(itemName)
-                && !globalArgs.containsPublisher(itemName)) {
-            this.suite = predefinedSuites.getDefaultSuite();
+                && !metrics.containsKey(itemName)
+                && !publishers.containsKey(itemName)) {
+            suite = predefinedSuites.getDefaultSuite();
             defaultSuiteAddedFromConfigExclude = true;
         }
 
-        if (suite.contains(itemName)) {
+        if (suite != null && suite.contains(itemName)) {
             suite.remove(itemName);
             if (suite.getTests().isEmpty()) {
                 allTestsExcluded = true;
             }
-        } else if (globalArgs.containsPublisher(itemName)) {
-            globalArgs.removePublisher(itemName);
-        } else if (getGlobalArgs().containsMetric(itemName)) {
-            globalArgs.removeMetric(itemName);
+        } else if (publishers.containsKey(itemName)) {
+            publishers.remove(itemName);
+        } else if (metrics.containsKey(itemName)) {
+            metrics.remove(itemName);
         } else {
             throw new IllegalStateException("No test/publisher/metric found with name \"" + itemName + "\", so we can't exclude it.");
         }
@@ -550,14 +717,11 @@ public class Configuration {
         throw new IllegalStateException("There are invalid properties in the configuration. Please check thoughday.log.");
     }
 
-
-    private RunMode getRunMode(ConfigParams configParams)
+    private RunMode getRunMode(Map<String, Object> runModeParams)
             throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        Map<String, Object> runModeParams = configParams.getRunModeParams();
         if (runModeParams.size() != 0 && !runModeParams.containsKey("type")) {
             throw new IllegalStateException("The Run mode doesn't have a type");
         }
-
 
         String type = runModeParams.size() != 0 ? String.valueOf(runModeParams.get("type")) : DEFAULT_RUN_MODE;
         Class<? extends RunMode> runModeClass = ReflectionsContainer.getInstance().getRunModeClasses().get(type);
@@ -574,9 +738,8 @@ public class Configuration {
         return runMode;
     }
 
-    private PublishMode getPublishMode(ConfigParams configParams)
+    private PublishMode getPublishMode(Map<String, Object> publishModeParams)
             throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
-        Map<String, Object> publishModeParams = configParams.getPublishModeParams();
         if (publishModeParams.size() != 0 && !publishModeParams.containsKey("type")) {
             throw new IllegalStateException("The Publish mode doesn't have a type");
         }
@@ -625,15 +788,6 @@ public class Configuration {
     }
 
     /**
-     * Getter for the suite
-     *
-     * @return
-     */
-    public TestSuite getTestSuite() {
-        return suite;
-    }
-
-    /**
      * Getter for the global args
      *
      * @return
@@ -671,7 +825,19 @@ public class Configuration {
         return new CliParser();
     }
 
+    public List<Phase> getPhases() {
+        return phases;
+    }
+
     public static Map<Object, HashSet<String>> getRequiredFieldsForClassAdded() {
         return requiredFieldsForClassAdded;
+    }
+
+    public TestSuite getTestSuite() {
+        return globalSuite;
+    }
+
+    public Set<Phase> getPhasesWithoutDuration() {
+        return phasesWithoutDuration;
     }
 }

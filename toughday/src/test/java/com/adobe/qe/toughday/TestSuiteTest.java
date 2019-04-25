@@ -133,6 +133,17 @@ public class TestSuiteTest {
         testCount();
     }
 
+    @Test
+    public void testMinTimeout() {
+        suite.setMinTimeout(Long.MAX_VALUE);
+
+        for (AbstractTest test : suite.getTests()) {
+            suite.setMinTimeout(Math.min(suite.getMinTimeout(), test.getTimeout()));
+        }
+
+        Assert.assertEquals(suite.getMinTimeout(), 10 * 1000);
+    }
+
     private void update(AbstractTest test, char op) {
         if (op == '-') {
             totalCount -= test.getCount();

@@ -28,6 +28,7 @@ public class TestSuite {
     private ArrayList<AbstractTest> orderedTests;
     private HashMap<String, AbstractTest> nameMap = new HashMap<>();
     private int totalWeight;
+    private long minTimeout;
 
     /**
      * Constructor.
@@ -60,10 +61,6 @@ public class TestSuite {
         return this;
     }
 
-    /**
-     * Getter for the setup step.
-     * @return a SetupStep object if configured, null otherwise.
-     */
     public TestSuite addAll(TestSuite testSuite) {
         this.setupStep.addAll(testSuite.setupStep);
         this.orderedTests.addAll(testSuite.orderedTests);
@@ -250,6 +247,14 @@ public class TestSuite {
      */
     public boolean contains(String testName) {
         return nameMap.containsKey(testName);
+    }
+
+    public long getMinTimeout() {
+        return minTimeout;
+    }
+
+    public void setMinTimeout(long minTimeout) {
+        this.minTimeout = minTimeout;
     }
 }
 

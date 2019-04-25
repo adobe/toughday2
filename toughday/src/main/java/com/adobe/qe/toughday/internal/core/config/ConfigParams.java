@@ -23,11 +23,14 @@ import java.util.*;
  */
 public class ConfigParams implements Serializable {
     private static final Logger LOGGER = LogManager.getLogger(ConfigParams.class);
-    
+
+    private List<PhaseParams> phasesParams = new ArrayList<>();
     private Map<String, Object> globalParams = new HashMap<>();
     private Map<String, Object> publishModeParams = new HashMap<>();
     private Map<String, Object> runModeParams = new HashMap<>();
     private List<Map.Entry<Actions, MetaObject>> items = new ArrayList<>();
+
+    private boolean globalLevel = true;
 
     public static class MetaObject  implements Serializable {
         private Map<String, Object> parameters;
@@ -91,26 +94,70 @@ public class ConfigParams implements Serializable {
         this.globalParams = globalParams;
     }
 
+    public void setPhasesParams(List<PhaseParams> phasesParams) {
+        this.phasesParams = phasesParams;
+    }
+
     public void setPublishModeParams(Map<String, Object> publishModeParams) {
-        this.publishModeParams = publishModeParams;
+        if (!globalLevel) {
+            phasesParams.get(phasesParams.size() - 1).setPublishmode(publishModeParams);
+        } else {
+            this.publishModeParams = publishModeParams;
+        }
     }
 
     public void setRunModeParams(Map<String, Object> runModeParams) {
-        this.runModeParams = runModeParams;
+        if (!globalLevel) {
+            phasesParams.get(phasesParams.size() - 1).setRunmode(runModeParams);
+        } else {
+            this.runModeParams = runModeParams;
+        }
     }
 
-    public void configItem(String testName, Map<String, Object> params) {
-        items.add(new AbstractMap.SimpleEntry<>(Actions.CONFIG, new NamedMetaObject(testName, params)));
+    public void createPhasewWithProperties(Map<String, Object> properties) {
+        PhaseParams phase = new PhaseParams();
+        phase.setProperties(properties);
+
+        if (!properties.containsKey("name")) {
+            properties.put("name", "phase" + (phasesParams.size() + 1));
+        }
+
+        phasesParams.add(phase);
+
     }
 
     public void addItem(String itemName, Map<String, Object> params) {
-        items.add(new AbstractMap.SimpleEntry<>(Actions.ADD, new ClassMetaObject(itemName, params)));
+        Map.Entry<Actions, MetaObject> newEntry = new AbstractMap.SimpleEntry<>(Actions.ADD,
+                new ClassMetaObject(itemName, params));
+
+        addToItemsOrLastPhase(newEntry);
+    }
+
+    public void configItem(String itemName, Map<String, Object> params) {
+        Map.Entry<Actions, MetaObject> newEntry = new AbstractMap.SimpleEntry<>(Actions.CONFIG,
+                new NamedMetaObject(itemName, params));
+
+        addToItemsOrLastPhase(newEntry);
     }
 
     public void excludeItem(String itemName) {
-        items.add(new AbstractMap.SimpleEntry<>(Actions.EXCLUDE, new NamedMetaObject(itemName, null)));
+        Map.Entry<Actions, MetaObject> newEntry = new AbstractMap.SimpleEntry<>(Actions.EXCLUDE,
+                new NamedMetaObject(itemName, null));
+
+        addToItemsOrLastPhase(newEntry);
     }
 
+    private void addToItemsOrLastPhase(Map.Entry<Actions, MetaObject> newEntry) {
+        if (!globalLevel) {
+            phasesParams.get(phasesParams.size() - 1).getItems().add(newEntry);
+        } else {
+            items.add(newEntry);
+        }
+    }
+
+    public List<PhaseParams> getPhasesParams() {
+        return phasesParams;
+    }
 
     public Map<String, Object> getGlobalParams(){
         return globalParams;
@@ -123,6 +170,7 @@ public class ConfigParams implements Serializable {
     public void merge(ConfigParams other) {
         globalParams.putAll(other.getGlobalParams());
         items.addAll(other.items);
+        phasesParams.addAll(other.phasesParams);
 
         if(other.runModeParams.containsKey("type"))
             this.runModeParams.clear();
@@ -135,5 +183,13 @@ public class ConfigParams implements Serializable {
 
     public List<Map.Entry<Actions, MetaObject>> getItems() {
         return items;
+    }
+
+    public boolean isGlobalLevel() {
+        return globalLevel;
+    }
+
+    public void setGlobalLevel(boolean globalLevel) {
+        this.globalLevel = globalLevel;
     }
 }

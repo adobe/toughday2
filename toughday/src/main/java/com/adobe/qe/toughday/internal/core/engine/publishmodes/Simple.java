@@ -27,22 +27,37 @@ public class Simple extends PublishMode {
 
     @Override
     public void publishIntermediateResults(Map<String, List<MetricResult>> results) {
-        for(Publisher publisher : engine.getGlobalArgs().getPublishers()) {
-            publisher.publishAggregatedIntermediate(results);
+        try {
+            engine.getCurrentPhaseLock().readLock().lock();
+            for(Publisher publisher : engine.getCurrentPhase().getPublishers()) {
+                publisher.publishAggregatedIntermediate(results);
+            }
+        } finally {
+            engine.getCurrentPhaseLock().readLock().unlock();
         }
     }
 
     @Override
     public void publish(Collection<TestResult> testResults) {
-        for(Publisher publisher : engine.getGlobalArgs().getPublishers()) {
-            publisher.publishRaw(testResults);
+        try {
+            engine.getCurrentPhaseLock().readLock().lock();
+            for(Publisher publisher : engine.getCurrentPhase().getPublishers()) {
+                publisher.publishRaw(testResults);
+            }
+        } finally {
+            engine.getCurrentPhaseLock().readLock().unlock();
         }
     }
 
     @Override
     public void publishFinalResults(Map<String, List<MetricResult>> results) {
-        for (Publisher publisher : engine.getGlobalArgs().getPublishers()) {
-            publisher.publishAggregatedFinal(results);
+        try {
+            engine.getCurrentPhaseLock().readLock().lock();
+            for (Publisher publisher : engine.getCurrentPhase().getPublishers()) {
+                publisher.publishAggregatedFinal(results);
+            }
+        } finally {
+            engine.getCurrentPhaseLock().readLock().unlock();
         }
     }
 }

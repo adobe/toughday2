@@ -12,6 +12,7 @@ governing permissions and limitations under the License.
 package com.adobe.qe.toughday.internal.core.config.parsers.yaml;
 
 import com.adobe.qe.toughday.internal.core.config.ConfigParams;
+import com.adobe.qe.toughday.internal.core.config.PhaseParams;
 
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,56 @@ public class YamlConfiguration {
         for (YamlParseAction yamlAction : extensions) {
             yamlAction.getAction().apply(configParams, yamlAction.getIdentifier(), yamlAction.getProperties());
         }
+    }
+
+    public void setPhases(List<YamlParsePhase> phases) {
+        configParams.setGlobalLevel(false);
+        int i = 1;
+        for (YamlParsePhase yamlParsePhase : phases) {
+            PhaseParams phase = new PhaseParams();
+            if (yamlParsePhase.getName() != null) {
+                phase.getProperties().put("name", yamlParsePhase.getName());
+            } else {
+                phase.getProperties().put("name", "phase" + i);
+            }
+
+            if (yamlParsePhase.getMeasurable() != null) {
+                phase.getProperties().put("measurable", yamlParsePhase.getMeasurable());
+            }
+
+            if (yamlParsePhase.getUseconfig() != null) {
+                phase.getProperties().put("useconfig", yamlParsePhase.getUseconfig());
+            }
+
+            if (yamlParsePhase.getDuration() != null) {
+                phase.getProperties().put("duration", yamlParsePhase.getDuration());
+            }
+
+            configParams.getPhasesParams().add(phase);
+
+            if (yamlParsePhase.getRunmode() != null) {
+                setRunmode(yamlParsePhase.getRunmode());
+            }
+
+            if (yamlParsePhase.getPublishmode() != null) {
+                setPublishmode(yamlParsePhase.getPublishmode());
+            }
+
+            if (yamlParsePhase.getTests() != null) {
+                setTests(yamlParsePhase.getTests());
+            }
+
+            if (yamlParsePhase.getMetrics() != null) {
+                setMetrics(yamlParsePhase.getMetrics());
+            }
+
+            if (yamlParsePhase.getPublishers() != null) {
+                setPublishers(yamlParsePhase.getPublishers());
+            }
+
+            ++i;
+        }
+        configParams.setGlobalLevel(true);
     }
 
     public ConfigParams getConfigParams() {

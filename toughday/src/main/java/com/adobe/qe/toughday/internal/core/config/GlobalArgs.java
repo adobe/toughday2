@@ -123,14 +123,17 @@ public class GlobalArgs implements com.adobe.qe.toughday.api.core.config.GlobalA
         return finalDuration;
     }
 
+    @Deprecated
     public void updatePublisherName(String oldName, String newName) {
         publishers.put(newName, publishers.remove(oldName));
     }
 
+    @Deprecated
     public void updateMetricName(String oldName, String newName) {
         metrics.put(newName, metrics.remove(oldName));
     }
 
+    @Deprecated
     public void addMetric(Metric metric) {
         if (metrics.containsKey(metric.getName())) {
             LOGGER.warn("A metric with this name was already added. Only the last one is taken into consideration.");
@@ -138,6 +141,7 @@ public class GlobalArgs implements com.adobe.qe.toughday.api.core.config.GlobalA
         metrics.put(metric.getName(), metric);
     }
 
+    @Deprecated
     public void addPublisher(Publisher publisher) {
         if (publishers.containsKey(publisher.getName())) {
             throw new IllegalStateException("There is already a publisher named \"" + publisher.getName() + "\"." +
@@ -146,6 +150,7 @@ public class GlobalArgs implements com.adobe.qe.toughday.api.core.config.GlobalA
         publishers.put(publisher.getName(), publisher);
     }
 
+    @Deprecated
     public Publisher getPublisher(String publisherName) {
         if (!publishers.containsKey(publisherName)) {
             throw new IllegalStateException("Could not find a publisher with the name \"" + publisherName + "\" to configure it.");
@@ -153,6 +158,7 @@ public class GlobalArgs implements com.adobe.qe.toughday.api.core.config.GlobalA
         return publishers.get(publisherName);
     }
 
+    @Deprecated
     public Metric getMetric(String metricName) {
         if (!metrics.containsKey(metricName)) {
             throw new IllegalStateException("Could not find a metric with the name \"" + metricName + "\" to configure it.");
@@ -160,12 +166,15 @@ public class GlobalArgs implements com.adobe.qe.toughday.api.core.config.GlobalA
         return metrics.get(metricName);
     }
 
+    @Deprecated
     public boolean containsPublisher(String publisherName) {
         return publishers.containsKey(publisherName);
     }
 
+    @Deprecated
     public boolean containsMetric(String metricName) { return metrics.containsKey(metricName); }
 
+    @Deprecated
     public void removePublisher(String publisherName) {
         Publisher publisher = publishers.remove(publisherName);
         if (publisher == null) {
@@ -173,6 +182,7 @@ public class GlobalArgs implements com.adobe.qe.toughday.api.core.config.GlobalA
         }
     }
 
+    @Deprecated
     public void removeMetric(String metricName) {
         Metric metric = metrics.remove(metricName);
         if (metric == null) {
@@ -194,6 +204,7 @@ public class GlobalArgs implements com.adobe.qe.toughday.api.core.config.GlobalA
      * Returns a list with all the metrics that are going to be published.
      * @return
      */
+    @Deprecated
     public Collection<Metric> getMetrics() {
 
         Collection<Metric> requiredMetrics = new ArrayList<>();
@@ -206,6 +217,7 @@ public class GlobalArgs implements com.adobe.qe.toughday.api.core.config.GlobalA
         return requiredMetrics;
     }
 
+    @Deprecated
     public Collection<Publisher> getPublishers() {
         return publishers.values();
     }

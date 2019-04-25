@@ -26,43 +26,42 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class AsyncResultAggregator extends AsyncEngineWorker {
     private final Engine engine;
-    private RunMode.RunContext context;
 
     /**
      * Constructor.
-     * @param context list of test workers from this engine.
      */
-    public AsyncResultAggregator(Engine engine, RunMode.RunContext context) {
+    public AsyncResultAggregator(Engine engine) {
         this.engine = engine;
-        this.context = context;
     }
 
     /**
      * Method aggregating results.
      */
     public boolean aggregateResults() {
+        RunMode.RunContext context = engine.getCurrentPhase().getRunMode().getRunContext();
         Collection<RunMap> localRunMaps = context.getRunMaps();
         synchronized (localRunMaps) {
             for (RunMap localRunMap : localRunMaps) {
-                Map<AbstractTest, Long> counts = engine.getPublishMode().aggregateAndReinitialize(localRunMap);
+                Map<AbstractTest, Long> counts = engine.getCurrentPhase().getPublishMode().aggregateAndReinitialize(localRunMap);
 
-                Map<AbstractTest, AtomicLong> globalCounts = engine.getCounts();
+                Map<AbstractTest, AtomicLong> globalCounts = engine.getCurrentPhase().getCounts();
                 for (Map.Entry<AbstractTest, AtomicLong> entry : globalCounts.entrySet()) {
                     globalCounts.get(entry.getKey()).addAndGet(counts.get(entry.getKey()));
                 }
             }
         }
+
         return context.isRunFinished();
     }
 
     // creates a map containing the results of the metrics that are going to be published
     public Map<String, List<MetricResult>> filterResults() {
         Map<String, List<MetricResult>> results = new LinkedHashMap<>();
-        RunMapImpl runMap = engine.getGlobalRunMap();
+        RunMapImpl runMap = engine.getCurrentPhase().getPublishMode().getRunMap();
         Collection<AbstractTest> tests = runMap.getTests();
         for (AbstractTest testInstance : tests) {
             List<MetricResult> metricResults = new ArrayList<>();
-            for (Metric metric : engine.getGlobalArgs().getMetrics()) {
+            for (Metric metric : engine.getCurrentPhase().getMetrics()) {
                 metricResults.add(metric.getResult(runMap.getRecord(testInstance)));
             }
             results.put(testInstance.getFullName(), metricResults);
@@ -79,7 +78,6 @@ public class AsyncResultAggregator extends AsyncEngineWorker {
         try {
             long elapsed = 0;
             while (!isFinished()) {
-
                 long sleepMillis = Engine.RESULT_AGGREATION_DELAY - elapsed;
                 if(sleepMillis > 0) {
                     Thread.sleep(sleepMillis);
@@ -88,16 +86,25 @@ public class AsyncResultAggregator extends AsyncEngineWorker {
                             " This may affect the results that you are seeing.");
                 }
 
-                long start = System.nanoTime();
-                boolean testsFinished = aggregateResults();
-                if (testsFinished) {
-                    this.finishExecution();
+                try {
+                    engine.getCurrentPhaseLock().readLock().lock();
+
+                    long start = System.nanoTime();
+                    boolean testsFinishedInPhase = aggregateResults();
+
+                    Phase phase = engine.getCurrentPhase();
+                    Map<String, List<MetricResult>> results = filterResults();
+                    phase.getPublishMode().publish(phase.getPublishMode().getRunMap().getCurrentTestResults());
+
+                    if (phase.getMeasurable() && !testsFinishedInPhase) {
+                        phase.getPublishMode().publishIntermediateResults(results);
+                    }
+
+                    ((RunMapImpl)phase.getPublishMode().getRunMap()).clearCurrentTestResults();
+                    elapsed = (System.nanoTime() - start) / 1000000l;
+                } finally {
+                    engine.getCurrentPhaseLock().readLock().unlock();
                 }
-                Map<String, List<MetricResult>> results = filterResults();
-                engine.getPublishMode().publish(engine.getGlobalRunMap().getCurrentTestResults());
-                engine.getPublishMode().publishIntermediateResults(results);
-                ((RunMapImpl)engine.getPublishMode().getGlobalRunMap()).clearCurrentTestResults();
-                elapsed = (System.nanoTime() - start) / 1000000l;
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -113,9 +120,13 @@ public class AsyncResultAggregator extends AsyncEngineWorker {
     }
 
     private void stopPublishers() {
-        for(Publisher publisher : engine.getGlobalArgs().getPublishers()) {
-            publisher.finish();
+        try {
+            engine.getCurrentPhaseLock().readLock().lock();
+            for(Publisher publisher : engine.getCurrentPhase().getPublishers()) {
+                publisher.finish();
+            }
+        } finally {
+            engine.getCurrentPhaseLock().readLock().unlock();
         }
     }
-
 }

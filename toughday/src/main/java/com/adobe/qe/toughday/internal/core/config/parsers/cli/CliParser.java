@@ -39,6 +39,7 @@ import java.util.*;
  * Parser for the command line arguments. It also prints the help message.
  */
 public class CliParser implements ConfigurationParser {
+    public final static List<Object> parserArgs = new ArrayList<>();
     private static final Logger LOGGER = LogManager.getLogger(CliParser.class);
 
     private static final String HELP_HEADER_FORMAT_WITH_TAGS = "   %-42s %-75s %-20s   %s";
@@ -50,7 +51,7 @@ public class CliParser implements ConfigurationParser {
     private static final String SUITE_HELP_HEADER = String.format("   %-40s %-40s   %s", "Suite", "Tags", "Description");
     private static Map<Integer, Map<String, ConfigArgSet>> availableGlobalArgs = new HashMap<>();
     private static List<ParserArgHelp> parserArgHelps = new ArrayList<>();
-    public final static List<Object> parserArgs = new ArrayList<>();
+
 
     public static final List<String> availableHelpOptions = Collections.unmodifiableList(
             new ArrayList<String>() {{
@@ -239,16 +240,20 @@ public class CliParser implements ConfigurationParser {
                 int skip = 0;
 
                 String arg = cmdLineArgs[i].substring(2);
-                if(Actions.isAction(arg)) {
+                if (arg.equals("phase")) {
+                    skip = parseObjectProperties(i + 1, cmdLineArgs, args);
+                    configParams.createPhasewWithProperties(args);
+                    configParams.setGlobalLevel(false);
+                } else if(Actions.isAction(arg)) {
                     Actions action = Actions.fromString(arg);
                     String identifier = cmdLineArgs[i + 1];
-                    skip = parseObjectProperties(i+2, cmdLineArgs, args) + 1;
+                    skip = parseObjectProperties(i + 2, cmdLineArgs, args) + 1;
                     action.apply(configParams, identifier, args);
                 } else if (arg.equals("publishmode")) {
-                    skip = parseObjectProperties(i+1, cmdLineArgs, args);
+                    skip = parseObjectProperties(i + 1, cmdLineArgs, args);
                     configParams.setPublishModeParams(args);
                 } else if (arg.equals("runmode")) {
-                    skip = parseObjectProperties(i+1, cmdLineArgs, args);
+                    skip = parseObjectProperties(i + 1, cmdLineArgs, args);
                     configParams.setRunModeParams(args);
                 } else if (arg.equals("help")) {
                     skip = 1;
@@ -269,7 +274,8 @@ public class CliParser implements ConfigurationParser {
                             && !key.equals("suite")  && !key.equals("suitesetup")) {
                         throw new IllegalArgumentException("Unrecognized argument --" + key);
                    }
-                    globalArgs.put(key, val);
+
+                   globalArgs.put(key, val);
                 }
 
                 i += skip;
@@ -574,7 +580,7 @@ public class CliParser implements ConfigurationParser {
                 System.out.printf("\t%-32s\r\n", test.getFullName() + " [" + test.getClass().getSimpleName() + "]");
                 if (withTestProperties) {
                     try {
-                        Engine.printObject(testSuite, System.out, test);
+                        Engine.printObject(System.out, test);
                     } catch (Exception e) {
                         LOGGER.error("Exception while printing the test suite.", e);
                     }

@@ -29,7 +29,12 @@ public abstract class PublishMode {
         this.globalRunMap = new RunMapImpl();
     }
 
+    @Deprecated
     public RunMapImpl getGlobalRunMap() {
+        return globalRunMap;
+    }
+
+    public RunMapImpl getRunMap() {
         return globalRunMap;
     }
 
