@@ -11,7 +11,7 @@
 
     <groupId>com.adobe.qe</groupId>
     <artifactId>aem-td2-core-tests</artifactId>
-    <version>0.9.3-SNAPSHOT</version>
+    <version>0.9.3</version>
 
     <licenses>
         <license>
@@ -66,7 +66,7 @@
         <connection>scm:git:git@github.com:adobe/toughday2.git</connection>
         <developerConnection>scm:git:git@github.com:adobe/toughday2.git</developerConnection>
         <url>https://github.com/adobe/toughday2/tree/master/aem-td2-core-tests</url>
-        <tag>HEAD</tag>
+        <tag>aem-td2-core-tests-0.9.3</tag>
     </scm>
 
     <dependencies>
