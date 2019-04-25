@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.adobe.qe</groupId>
         <artifactId>sling-td2-tests-parent</artifactId>
-        <version>0.9.3-SNAPSHOT</version>
+        <version>0.9.3</version>
         <relativePath>../sling-td2-tests-parent/pom.xml</relativePath>
     </parent>
 
@@ -36,7 +36,7 @@
         <dependency>
             <groupId>com.adobe.qe</groupId>
             <artifactId>aem-td2-core-tests</artifactId>
-            <version>0.9.3-SNAPSHOT</version>
+            <version>0.9.3</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
