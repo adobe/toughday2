@@ -4,7 +4,7 @@
 
     <groupId>com.adobe.qe</groupId>
     <artifactId>toughday2-tests-parent</artifactId>
-    <version>0.9.4-SNAPSHOT</version>
+    <version>0.9.4-beta</version>
     <packaging>pom</packaging>
 
     <licenses>
@@ -22,7 +22,7 @@
         <connection>scm:git:git@github.com:adobe/toughday2.git</connection>
         <developerConnection>scm:git:git@github.com:adobe/toughday2.git</developerConnection>
         <url>https://github.com/adobe/toughday2/tree/master/toughday2-tests-parent</url>
-        <tag>HEAD</tag>
+        <tag>toughday2-tests-parent-0.9.4-beta</tag>
     </scm>
 
     <properties>
