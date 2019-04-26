@@ -172,18 +172,18 @@
         <dependency>
             <groupId>com.adobe.qe</groupId>
             <artifactId>toughday2-api</artifactId>
-            <version>0.9.3</version>
+            <version>0.9.4-beta</version>
         </dependency>
         <dependency>
             <groupId>com.adobe.qe</groupId>
             <artifactId>toughday2-api</artifactId>
-            <version>0.9.3</version>
+            <version>0.9.4-beta</version>
             <type>test-jar</type>
         </dependency>
         <dependency>
             <groupId>com.adobe.qe</groupId>
             <artifactId>aem-td2-core-tests</artifactId>
-            <version>0.9.3</version>
+            <version>0.9.4-beta</version>
         </dependency>
         <!-- Force third-party libraries to use slf4j -->
         <dependency>
