@@ -27,7 +27,7 @@ import java.lang.reflect.Constructor;
 public class TestConstructor extends TestCase {
     private Class TdClass;
 
-    public TestConstructor(String testName, Class<? extends AbstractTest> TDTestClass) {
+    public TestConstructor(String testName, Class TDTestClass) {
         super(testName);
         this.TdClass = TDTestClass;
     }

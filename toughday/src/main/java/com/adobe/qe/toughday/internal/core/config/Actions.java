@@ -27,12 +27,12 @@ public enum Actions implements ConfigAction {
 
         @Override
         public String actionParams() {
-            return "ExtensionJar | [f.q.d.n]TestClass/[f.q.d.n]PublisherClass/[f.q.d.n]MetricClass property1=val property2=val";
+            return "ExtensionJar | [f.q.d.n]TestClass/[f.q.d.n]PublisherClass/[f.q.d.n]MetricClass/[f.q.d.n]FeederClass property1=val property2=val";
         }
 
         @Override
         public String actionDescription() {
-            return "Add an extension or a test to the suite or a publisher/metric. For test, publisher and metric it can be used the fully qualified domain name which represents the package's name.";
+            return "Add an extension or a test to the suite or a publisher/metric/feeder. For test, publisher, metric and feeder it can be used the fully qualified domain name which represents the package's name.";
         }
     },
     CONFIG {
@@ -48,12 +48,12 @@ public enum Actions implements ConfigAction {
 
         @Override
         public String actionParams() {
-            return "TestName/PublisherName/MetricName property1=val property2=val";
+            return "TestName/PublisherName/MetricName/FeederName property1=val property2=val";
         }
 
         @Override
         public String actionDescription() {
-            return "Override parameters for a test/publisher/metric from config file or a predefined suite";
+            return "Override parameters for a test/publisher/metric/feeder from config file or a predefined suite";
         }
     },
     EXCLUDE {
@@ -73,12 +73,12 @@ public enum Actions implements ConfigAction {
 
         @Override
         public String actionParams() {
-            return "TestName/PublisherName/MetricName";
+            return "TestName/PublisherName/MetricName/FeederName";
         }
 
         @Override
         public String actionDescription() {
-            return "Exclude a test/publisher/metric from config file or a predefined suite.";
+            return "Exclude a test/publisher/metric/feeder from config file or a predefined suite.";
         }
     };
 

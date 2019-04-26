@@ -21,6 +21,7 @@ public class YamlConfiguration {
 
     private ConfigParams configParams = new ConfigParams();
 
+
     public void setGlobals(Map<String, Object> globals) {
         this.configParams.setGlobalParams(globals);
     }
@@ -107,7 +108,14 @@ public class YamlConfiguration {
         configParams.setGlobalLevel(true);
     }
 
+    public void setFeeders(List<YamlParseAction> feeders) {
+        for (YamlParseAction yamlParseAction : feeders) {
+            yamlParseAction.getAction().apply(configParams, yamlParseAction.getIdentifier(), yamlParseAction.getProperties());
+        }
+    }
+
     public ConfigParams getConfigParams() {
         return configParams;
     }
+
 }

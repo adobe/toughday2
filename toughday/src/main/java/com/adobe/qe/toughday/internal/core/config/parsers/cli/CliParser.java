@@ -15,8 +15,13 @@ import com.adobe.qe.toughday.api.annotations.ConfigArgSet;
 import com.adobe.qe.toughday.api.annotations.Description;
 import com.adobe.qe.toughday.api.annotations.Name;
 import com.adobe.qe.toughday.api.annotations.Tag;
+import com.adobe.qe.toughday.api.annotations.feeders.FeederGet;
+import com.adobe.qe.toughday.api.annotations.feeders.FeederSet;
 import com.adobe.qe.toughday.api.core.AbstractTest;
 import com.adobe.qe.toughday.api.core.Publisher;
+import com.adobe.qe.toughday.api.feeders.Feeder;
+import com.adobe.qe.toughday.api.feeders.InputFeeder;
+import com.adobe.qe.toughday.api.feeders.OutputFeeder;
 import com.adobe.qe.toughday.internal.core.ReflectionsContainer;
 import com.adobe.qe.toughday.internal.core.SuiteSetup;
 import com.adobe.qe.toughday.internal.core.TestSuite;
@@ -26,6 +31,7 @@ import com.adobe.qe.toughday.internal.core.engine.PublishMode;
 import com.adobe.qe.toughday.internal.core.engine.RunMode;
 import com.adobe.qe.toughday.metrics.Metric;
 import com.google.common.base.Joiner;
+import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.logging.log4j.LogManager;
@@ -391,7 +397,11 @@ public class CliParser implements ConfigurationParser {
             } else if (ReflectionsContainer.getInstance().isMetricClass(cmdLineArgs[1])) {
                 Class<? extends Metric> metricClass = ReflectionsContainer.getInstance().getMetricClass(cmdLineArgs[1]);
                 printClass(metricClass, true, false, false);
-            } else if (cmdLineArgs[1].startsWith("--suite=")) {
+            } else if (ReflectionsContainer.getInstance().isFeederClass(cmdLineArgs[1])) {
+                Class<? extends Feeder> feederClass = ReflectionsContainer.getInstance().getFeederClass(cmdLineArgs[1]);
+                printClass(feederClass, true, false, false);
+            }
+            else if (cmdLineArgs[1].startsWith("--suite=")) {
                 System.out.println(SUITE_HELP_HEADER);
                 printTestSuite(new PredefinedSuites(), cmdLineArgs[1].split("=")[1], true, true);
             } else if (cmdLineArgs[1].startsWith("--tag=")) {
@@ -553,6 +563,62 @@ public class CliParser implements ConfigurationParser {
                             annotation.required(),
                             annotation.defaultValue(),
                             annotation.desc());
+                }
+            }
+            printInputFeederSetters(klass);
+            printOutputFeederSetters(klass);
+            printOutputFeederGetters(klass);
+        }
+    }
+
+    private static void printOutputFeederGetters(Class klass) {
+        System.out.println();
+        System.out.println(String.format("\t%-32s %-64s", "Output Feeder Getters", "Type"));
+        for (Method method : klass.getMethods()) {
+            if(method.getAnnotation(FeederGet.class) != null) {
+                FeederGet annotation = method.getAnnotation(FeederGet.class);
+                if (OutputFeeder.class.isAssignableFrom(method.getReturnType())) {
+                    String type = TypeResolver.resolveGenericType(OutputFeeder.class, method.getGenericReturnType()).getTypeName();
+                    type = type.substring(34);
+                    System.out.println(String.format("\t%-32s %-64s",
+                            Configuration.propertyFromMethod(method.getName()),
+                            type));
+                }
+            }
+        }
+    }
+
+    private static void printOutputFeederSetters(Class klass) {
+        System.out.println();
+        System.out.println(String.format("\t%-32s %-64s %-32s", "Output Feeder Setters", "Type", "Description"));
+        for (Method method : klass.getMethods()) {
+            if(method.getAnnotation(FeederSet.class) != null) {
+                FeederSet annotation = method.getAnnotation(FeederSet.class);
+                if (OutputFeeder.class.isAssignableFrom(method.getParameterTypes()[0])) {
+                    String type = TypeResolver.resolveGenericType(OutputFeeder.class, method.getGenericParameterTypes()[0]).getTypeName();
+                    type = type.substring(34);
+                    System.out.println(String.format("\t%-32s %-64s %-32s",
+                            Configuration.propertyFromMethod(method.getName()) + "=val" + (annotation.required() ? "" : " (optional)"),
+                            type,
+                            annotation.desc()));
+                }
+            }
+        }
+    }
+
+    private static void printInputFeederSetters(Class klass) {
+        System.out.println();
+        System.out.println(String.format("\t%-32s %-64s %-32s", "Input Feeder Setters", "Type", "Description"));
+        for (Method method : klass.getMethods()) {
+            if(method.getAnnotation(FeederSet.class) != null) {
+                FeederSet annotation = method.getAnnotation(FeederSet.class);
+                if (InputFeeder.class.isAssignableFrom(method.getParameterTypes()[0])) {
+                    String type = TypeResolver.resolveGenericType(InputFeeder.class, method.getGenericParameterTypes()[0]).getTypeName();
+                    type = type.substring(34);
+                    System.out.println(String.format("\t%-32s %-64s %-32s",
+                            Configuration.propertyFromMethod(method.getName()) + "=val" + (annotation.required() ? "" : " (optional)"),
+                            type,
+                            annotation.desc()));
                 }
             }
         }

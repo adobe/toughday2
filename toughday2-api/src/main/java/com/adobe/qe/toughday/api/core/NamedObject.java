@@ -11,17 +11,18 @@ governing permissions and limitations under the License.
 */
 package com.adobe.qe.toughday.api.core;
 
+import com.adobe.qe.toughday.api.annotations.ConfigArgGet;
+import com.adobe.qe.toughday.api.annotations.ConfigArgSet;
+import com.adobe.qe.toughday.api.annotations.labels.NotNull;
+
 /**
- * Exception for skipping tests in case a dependency test failed/was not executed.
+ * As Annotations from Interfaces are not inherited in Java, you'll have to add similar annotations to your implementation.\
+ * If your implementation allows this, you can extend {@link NamedObjectImpl} for convenience
  */
-public class SkippedTestException extends ToughDayException {
-    public SkippedTestException(Throwable e) {
-        super(e.getMessage(), e);
-    }
+public interface NamedObject {
+    @ConfigArgGet
+    @NotNull String getName();
 
-    public SkippedTestException(String message, Throwable e) {
-        super(message, e);
-    }
-
-    public SkippedTestException(String message) { super(message, null); }
+    @ConfigArgSet(required = false, desc = "The name of this object")
+    void setName(String name);
 }
