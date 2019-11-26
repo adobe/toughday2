@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: driver
+spec:
+  selector:
+    matchLabels:
+      app: driver
+  serviceName: driver
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: driver
+    spec:
+      containers:
+      - image: <driver_image>
+        env:
+        - name: NR_DRIVERS
+          value: "2" # set this value to the value of spec.replicas field
+        name: driver-container
+        ports:
+        - containerPort: 4567
+        - containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 4567
+          initialDelaySeconds: 20
+          periodSeconds: 3
+
+---
+
+# headless service required by StatefulSet resource
+apiVersion: v1
+kind: Service
+metadata:
+  name: driver
+  labels:
+    app: driver
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 4567
+    name: http
+  selector:
+    app: driver
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: driver
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+spec:
+  rules:
+  - http:
+      paths:
+      - backend:
+          serviceName: driver
+          servicePort: 80
+        path: /config
