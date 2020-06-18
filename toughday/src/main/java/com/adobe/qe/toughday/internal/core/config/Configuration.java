@@ -737,15 +737,15 @@ public class Configuration {
         return testSuite;
     }
 
-    private void checkInvalidArgs(Map<String, Object> args, List<Object>... whitelisted) {
+    private void checkInvalidArgs(Map<String, Object> args, List<Object>... allowed) {
         Map<String, Object> argsCopy = new HashMap<>();
         argsCopy.putAll(args);
         args = argsCopy;
 
-        for (int i = 0; i < whitelisted.length; i++) {
-            List<Object> whitelist = whitelisted[i];
-            for (Object whitelistedArg : whitelist) {
-                args.remove(whitelistedArg);
+        for (int i = 0; i < allowed.length; i++) {
+            List<Object> allowList = allowed[i];
+            for (Object allowedArg : allowList) {
+                args.remove(allowedArg);
             }
         }
 
