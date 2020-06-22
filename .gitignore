@@ -7,3 +7,6 @@ target/
 *.log
 workspace/
 dependency-reduced-pom.xml
+.settings/
+.project
+.classpath
