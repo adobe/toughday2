@@ -271,5 +271,11 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.sparkjava</groupId>
+            <artifactId>spark-core</artifactId>
+            <version>2.7.2</version>
+        </dependency>
+
     </dependencies>
 </project>

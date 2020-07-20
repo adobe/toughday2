@@ -24,7 +24,7 @@ import com.adobe.qe.toughday.metrics.Timestamp;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class Phase {
+public class Phase implements Cloneable {
     private static final String DEFAULT_MEASURABILITY = "true";
 
     private String name;
@@ -38,6 +38,15 @@ public class Phase {
     private Map<String, Publisher> publishers = new HashMap<>();
     private Map<String, Metric> metrics = new LinkedHashMap<>();
     private Map<AbstractTest, AtomicLong> counts = new HashMap<>();
+
+    /**
+     * Creates shallow copy.
+     * @throws CloneNotSupportedException if the object to be cloned does not implement the Cloneable interface.
+     */
+    @Override
+    public Object clone() throws CloneNotSupportedException {
+        return super.clone();
+    }
 
     @ConfigArgGet
     public String getName() {
@@ -71,8 +80,8 @@ public class Phase {
     }
 
     @ConfigArgGet
-    public Long getDuration() {
-        return duration;
+    public String getDuration() {
+        return duration == null ? null : String.valueOf(duration) + 's';
     }
 
     @ConfigArgSet(required = false, desc = "The duration of the current phase.")

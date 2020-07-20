@@ -24,6 +24,7 @@ import com.adobe.qe.toughday.internal.core.config.parsers.yaml.YamlParser;
 import com.adobe.qe.toughday.internal.core.engine.Phase;
 import com.adobe.qe.toughday.internal.core.engine.PublishMode;
 import com.adobe.qe.toughday.internal.core.engine.RunMode;
+import com.adobe.qe.toughday.internal.core.distributedtd.cluster.DistributedConfig;
 import com.adobe.qe.toughday.metrics.Metric;
 import com.adobe.qe.toughday.publishers.CSVPublisher;
 import com.adobe.qe.toughday.publishers.ConsolePublisher;
@@ -36,9 +37,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.reflections.Reflections;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.ref.WeakReference;
+import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -63,6 +62,7 @@ public class Configuration {
 
     private PredefinedSuites predefinedSuites = new PredefinedSuites();
     private GlobalArgs globalArgs;
+    private DistributedConfig distributedConfig;
     private RunMode runMode;
     private PublishMode publishMode;
     private TestSuite globalSuite;
@@ -70,12 +70,44 @@ public class Configuration {
     private Map<String, Metric> globalMetrics = new LinkedHashMap<>();
     private List<Phase> phases = new ArrayList<>();
     private Set<Phase> phasesWithoutDuration = new HashSet<>();
+    private ConfigParams configParams;
     private boolean defaultSuiteAddedFromConfigExclude = false;
     private boolean anyMetricAdded = false;
     private boolean anyPublisherAdded = false;
     private boolean allTestsExcluded = false;
     private Map<String, Feeder> feeders = new LinkedHashMap<>();
     private Map<String, Object> objects = new HashMap<>();
+
+    public Configuration(String yamlConfig)
+            throws InvocationTargetException, NoSuchMethodException, InstantiationException, IOException, IllegalAccessException {
+        ConfigParams configParams = new YamlParser().parse(yamlConfig);
+        buildConfiguration(configParams);
+    }
+
+    public Configuration(String[] cmdLineArgs)
+            throws IllegalAccessException, InstantiationException, InvocationTargetException, NoSuchMethodException, IOException {
+        ConfigParams configParams = collectConfigurations(cmdLineArgs);
+        buildConfiguration(configParams);
+
+    }
+
+    /**
+     * Method for getting the property from a setter method
+     *
+     * @param methodName
+     * @return
+     */
+    public static String propertyFromMethod(String methodName) {
+        return methodName.startsWith("set") || methodName.startsWith("get") ? StringUtils.lowerCase(methodName.substring(3)) : StringUtils.lowerCase(methodName);
+    }
+
+    public static Map<Object, HashSet<String>> getRequiredFieldsForClassAdded() {
+        return requiredFieldsForClassAdded;
+    }
+
+    public ConfigParams getConfigParams() {
+        return this.configParams;
+    }
 
     private void handleExtensions(ConfigParams configParams) {
         List<String> extensionList = new ArrayList<>();
@@ -121,7 +153,8 @@ public class Configuration {
     }
 
     /**
-     *  Creates a jar file for each extension file that should be loaded.
+     * Creates a jar file for each extension file that should be loaded.
+     *
      * @param extensionList A list of names representing the jar files that should be loaded.
      */
     private List<JarFile> createJarFiles(List<String> extensionList) {
@@ -139,7 +172,8 @@ public class Configuration {
     }
 
     /**
-     *  Creates an URL for each jar file, using its filename.
+     * Creates an URL for each jar file, using its filename.
+     *
      * @param extensionsFileNames
      * @return
      */
@@ -157,7 +191,6 @@ public class Configuration {
     }
 
     // loads all classes from the extension jar files using a new class loader.
-
     private ClassLoader processJarFiles(List<JarFile> jarFiles, URL[] urls) throws MalformedURLException {
         ToughdayExtensionClassLoader classLoader = new ToughdayExtensionClassLoader(urls, Thread.currentThread().getContextClassLoader());
         Map<String, String> newClasses = new HashMap<>();
@@ -194,10 +227,14 @@ public class Configuration {
         return classLoader;
     }
 
+    public boolean executeInDitributedMode() {
+        return !configParams.getDistributedConfigParams().isEmpty() &&
+                !this.getDistributedConfig().getAgent() &&
+                !this.getDistributedConfig().getDriver();
+    }
 
-    public Configuration(String[] cmdLineArgs)
-            throws IllegalAccessException, InstantiationException, InvocationTargetException, NoSuchMethodException, IOException {
-        ConfigParams configParams = collectConfigurations(cmdLineArgs);
+    private void buildConfiguration(ConfigParams configParams) throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException, IOException {
+        this.configParams = ConfigParams.deepClone(configParams);
         ConfigParams copyOfConfigParams = ConfigParams.deepClone(configParams);
         Map<String, Class> items = new HashMap<>();
 
@@ -206,11 +243,12 @@ public class Configuration {
 
         Map<String, Object> globalArgsMeta = configParams.getGlobalParams();
         for (String helpOption : CliParser.availableHelpOptions) {
-           if (globalArgsMeta.containsKey(helpOption)) {
-               return;
-           }
+            if (globalArgsMeta.containsKey(helpOption)) {
+                return;
+            }
         }
 
+        this.distributedConfig = createObject(DistributedConfig.class, configParams.getDistributedConfigParams());
         this.globalArgs = createObject(GlobalArgs.class, globalArgsMeta);
 
         configureLogPath(globalArgs.getLogPath());
@@ -232,6 +270,7 @@ public class Configuration {
             GenerateYamlConfiguration generateYaml = new GenerateYamlConfiguration(copyOfConfigParams, items);
             generateYaml.createYamlConfigurationFile();
         }
+
         objects = null;
     }
 
@@ -315,8 +354,8 @@ public class Configuration {
         phase.setPublishMode(publishMode);
 
         // compute the minimum timeout of the phase
-        phase.getTestSuite().setMinTimeout(globalArgs.getTimeout());
-        for(AbstractTest test : phase.getTestSuite().getTests()) {
+        phase.getTestSuite().setMinTimeout(globalArgs.getTimeoutInSeconds());
+        for (AbstractTest test : phase.getTestSuite().getTests()) {
             // set the count (the number of executions since the beginnin of the run) of each test to 0
             phase.getCounts().put(test, new AtomicLong(0));
 
@@ -325,7 +364,7 @@ public class Configuration {
 
             items.put(test.getName(), test.getClass());
 
-            if(test.getTimeout() < 0) {
+            if (test.getTimeout() < 0) {
                 continue;
             }
 
@@ -373,7 +412,7 @@ public class Configuration {
 
             // merge the current phase with the one whose name is the value of 'useconfig'
             phaseParams.merge(PhaseParams.namedPhases.get(useconfig),
-                        new HashSet<>(Arrays.asList(name, useconfig)));
+                    new HashSet<>(Arrays.asList(name, useconfig)));
 
         }
     }
@@ -390,7 +429,7 @@ public class Configuration {
                     configItem((ConfigParams.NamedMetaObject) item.getValue(), items, testSuite, publishers, metrics);
                     break;
                 case EXCLUDE:
-                    excludeItem(((ConfigParams.NamedMetaObject)item.getValue()).getName(), testSuite, publishers, metrics);
+                    excludeItem(((ConfigParams.NamedMetaObject) item.getValue()).getName(), testSuite, publishers, metrics);
                     break;
             }
         }
@@ -405,7 +444,7 @@ public class Configuration {
             if (phase.getDuration() == null) {
                 phasesWithoutDuration.add(phase);
             } else {
-                durationLeft -= phase.getDuration();
+                durationLeft -= GlobalArgs.parseDurationToSeconds(phase.getDuration());
             }
         }
 
@@ -614,16 +653,6 @@ public class Configuration {
     }
 
     /**
-     * Method for getting the property from a setter method
-     *
-     * @param methodName
-     * @return
-     */
-    public static String propertyFromMethod(String methodName) {
-        return methodName.startsWith("set") || methodName.startsWith("get") ? StringUtils.lowerCase(methodName.substring(3)) : StringUtils.lowerCase(methodName);
-    }
-
-    /**
      * Method for setting an object properties annotated with ConfigArgSet using reflection
      *
      * @param object
@@ -635,9 +664,9 @@ public class Configuration {
      * @throws IllegalAccessException    caused by reflection
      */
     //TODO figure out if we can make this public static again
-    public  <T> T setObjectProperties(T object, Map<String, Object> args, boolean applyDefaults, Map<String, Feeder> feedersContext) throws InvocationTargetException, IllegalAccessException {
+    public <T> T setObjectProperties(T object, Map<String, Object> args, boolean applyDefaults, Map<String, Feeder> feedersContext) throws InvocationTargetException, IllegalAccessException {
         Class classObject = object.getClass();
-        LOGGER.info("Configuring object of class: " + classObject.getSimpleName()+" ["+classObject.getName()+"]");
+        LOGGER.info("Configuring object of class: " + classObject.getSimpleName() + " [" + classObject.getName() + "]");
         for (Method method : classObject.getMethods()) {
             callConfigArgSet(method, object, args, applyDefaults);
             FeederInjector.injectFeeder(method, object, args, applyDefaults, feedersContext, objects);
@@ -683,7 +712,8 @@ public class Configuration {
         }
     }
 
-    public  <T> T createObject(Class<? extends T> classObject, Map<String, Object> args)
+
+    public <T> T createObject(Class<? extends T> classObject, Map<String, Object> args)
             throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
         return createObject(classObject, args, null);
     }
@@ -700,7 +730,7 @@ public class Configuration {
      * @throws InstantiationException
      * @throws NoSuchMethodException
      */
-    public  <T> T createObject(Class<? extends T> classObject, Map<String, Object> args, Map<String, Feeder> feederContext)
+    public <T> T createObject(Class<? extends T> classObject, Map<String, Object> args, Map<String, Feeder> feederContext)
             throws IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchMethodException {
 
         Constructor constructor = null;
@@ -838,6 +868,14 @@ public class Configuration {
     }
 
     /**
+     * Getter for kubernetes config args
+     * @return
+     */
+    public DistributedConfig getDistributedConfig() {
+        return this.distributedConfig;
+    }
+
+    /**
      * Getter for the run mode
      *
      * @return
@@ -870,8 +908,8 @@ public class Configuration {
         return phases;
     }
 
-    public static Map<Object, HashSet<String>> getRequiredFieldsForClassAdded() {
-        return requiredFieldsForClassAdded;
+    public void setPhases(List<Phase> phases) {
+        this.phases = phases;
     }
 
     public TestSuite getTestSuite() {
@@ -882,5 +920,7 @@ public class Configuration {
         return phasesWithoutDuration;
     }
 
-    public Collection<Feeder> getFeeders() { return feeders.values(); }
+    public Collection<Feeder> getFeeders() {
+        return feeders.values();
+    }
 }

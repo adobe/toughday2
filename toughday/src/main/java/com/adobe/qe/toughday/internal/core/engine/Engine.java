@@ -23,6 +23,7 @@ import com.adobe.qe.toughday.api.annotations.Setup;
 import com.adobe.qe.toughday.api.annotations.ConfigArgGet;
 import com.adobe.qe.toughday.internal.core.config.Configuration;
 import com.adobe.qe.toughday.internal.core.config.GlobalArgs;
+import com.adobe.qe.toughday.internal.core.distributedtd.cluster.Agent;
 import com.adobe.qe.toughday.metrics.Metric;
 import com.adobe.qe.toughday.tests.sequential.AEMTestBase;
 import com.adobe.qe.toughday.tests.utils.PackageManagerClient;
@@ -54,6 +55,7 @@ public class Engine {
     protected static Random _rnd = new Random();
 
     private final Configuration configuration;
+    private Agent agent;
     private GlobalArgs globalArgs;
     private ExecutorService engineExecutorService = Executors.newFixedThreadPool(2);
     private final ReentrantReadWriteLock engineSync = new ReentrantReadWriteLock();
@@ -90,6 +92,10 @@ public class Engine {
      */
     public GlobalArgs getGlobalArgs() {
         return globalArgs;
+    }
+
+    public void setAgent(Agent agent) {
+        this.agent = agent;
     }
 
     public boolean areTestsRunning() { return testsRunning; }
@@ -370,6 +376,7 @@ public class Engine {
                 } finally {
                     currentPhaseLock.readLock().unlock();
                 }
+
                 Engine.logGlobal("Test execution finished at: " + Engine.getCurrentDateTime());
                 LogManager.shutdown();
             }
@@ -411,7 +418,7 @@ public class Engine {
             }
 
             RunMode currentRunmode = phase.getRunMode();
-            Long currentDuration = phase.getDuration();
+            Long currentDuration = GlobalArgs.parseDurationToSeconds(phase.getDuration());
 
             currentRunmode.runTests(this);
             long start = System.currentTimeMillis();
@@ -422,6 +429,10 @@ public class Engine {
             } catch (InterruptedException e) {
                 LOG.info("Phase interrupted.");
                 long elapsed = System.currentTimeMillis() - start;
+
+                if (this.agent != null) {
+                    agent.announcePhaseCompletion();
+                }
 
                 // if the phase finishes sooner than its duration,
                 // the remainder is split equally between the remaining phases
@@ -532,7 +543,11 @@ public class Engine {
     }
 
     public Phase getCurrentPhase() {
-        return currentPhase;
+        currentPhaseLock.readLock().lock();
+        Phase phase = currentPhase;
+        currentPhaseLock.readLock().unlock();
+
+        return phase;
     }
 
     public ReadWriteLock getCurrentPhaseLock() {

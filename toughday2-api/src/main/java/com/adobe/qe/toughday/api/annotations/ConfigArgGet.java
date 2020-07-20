@@ -18,7 +18,7 @@ import java.lang.annotation.Target;
 
 /**
  * Use this annotation on a getter to expose it as a configuration property.
- * These properties will be automatically picked up, shown in logging or in "dry" runmode
+ * These properties will be automatically picked up, shown in logging or in "dry" runmodes
  * Supported classes: subtypes of AbstractTest, subtypes of Publisher and
  * GlobalArgs.
  */
@@ -26,4 +26,14 @@ import java.lang.annotation.Target;
 @Target(value = ElementType.METHOD)
 public @interface ConfigArgGet {
     String name() default "";
+
+    /**
+     * Use this field when you want to specify that a certain property must be taken into
+     * consideration when redistributing the work between the agents running in the cluster.
+     * The property will be automatically collected by the AbstractRunModeBalancer.
+     * Currently, this annotations is supported only for classes implementing the RunMode
+     * interface.
+     * @return
+     */
+    boolean redistribute() default false;
 }
