@@ -137,7 +137,7 @@ public class TestConstantLoadMode {
         Assert.assertEquals(((ConstantLoad)configuration.getRunMode()).getStart(), 10);
         Assert.assertEquals(((ConstantLoad)configuration.getRunMode()).getEnd(), 100);
         Assert.assertEquals(((ConstantLoad)configuration.getRunMode()).getRate(), 5);
-        Assert.assertEquals(((ConstantLoad)configuration.getRunMode()).getInterval(), 60);
+        Assert.assertEquals(((ConstantLoad)configuration.getRunMode()).getInterval(), "60s");
     }
 
     @After

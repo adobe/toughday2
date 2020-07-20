@@ -26,6 +26,7 @@ public class ConfigParams implements Serializable {
 
     private List<PhaseParams> phasesParams = new ArrayList<>();
     private Map<String, Object> globalParams = new HashMap<>();
+    private Map<String, Object> distributedConfigParams = new HashMap<>();
     private Map<String, Object> publishModeParams = new HashMap<>();
     private Map<String, Object> runModeParams = new HashMap<>();
     private List<Map.Entry<Actions, MetaObject>> items = new ArrayList<>();
@@ -92,6 +93,10 @@ public class ConfigParams implements Serializable {
 
     public void setGlobalParams(Map<String, Object> globalParams) {
         this.globalParams = globalParams;
+    }
+
+    public void setDistributedConfigParams(Map<String, Object> distributedConfigParams) {
+        this.distributedConfigParams = distributedConfigParams;
     }
 
     public void setPhasesParams(List<PhaseParams> phasesParams) {
@@ -163,12 +168,15 @@ public class ConfigParams implements Serializable {
         return globalParams;
     }
 
+    public Map<String, Object> getDistributedConfigParams() { return distributedConfigParams; }
+
     public Map<String, Object> getPublishModeParams() { return publishModeParams; }
 
     public Map<String, Object> getRunModeParams() { return runModeParams; }
 
     public void merge(ConfigParams other) {
         globalParams.putAll(other.getGlobalParams());
+        distributedConfigParams.putAll(other.distributedConfigParams);
         items.addAll(other.items);
         phasesParams.addAll(other.phasesParams);
 

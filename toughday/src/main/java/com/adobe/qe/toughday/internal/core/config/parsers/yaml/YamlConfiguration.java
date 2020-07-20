@@ -21,6 +21,9 @@ public class YamlConfiguration {
 
     private ConfigParams configParams = new ConfigParams();
 
+    private void setDistributedConfig(Map<String, Object> distributedConfig) {
+        this.configParams.setDistributedConfigParams(distributedConfig);
+    }
 
     public void setGlobals(Map<String, Object> globals) {
         this.configParams.setGlobalParams(globals);

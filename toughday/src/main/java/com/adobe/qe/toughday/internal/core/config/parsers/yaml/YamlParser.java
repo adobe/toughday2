@@ -43,6 +43,31 @@ public class YamlParser implements ConfigurationParser {
         }
     };
 
+    private Constructor getYamlConstructor() {
+        Constructor constructor = new Constructor(YamlConfiguration.class);
+        TypeDescription yamlParserDesc = new TypeDescription(YamlConfiguration.class);
+
+        yamlParserDesc.putListPropertyType("tests", YamlParseAction.class);
+        yamlParserDesc.putListPropertyType("phases", YamlParsePhase.class);
+        yamlParserDesc.putListPropertyType("publishers", YamlParseAction.class);
+        yamlParserDesc.putListPropertyType("metrics", YamlParseAction.class);
+        yamlParserDesc.putListPropertyType("extensions", YamlParseAction.class);
+        yamlParserDesc.putListPropertyType("feeders", YamlParseAction.class);
+
+        constructor.addTypeDescription(yamlParserDesc);
+
+        return constructor;
+    }
+
+    public ConfigParams parse(String stringYaml) {
+        Constructor constructor = getYamlConstructor();
+
+        Yaml yaml = new Yaml(constructor);
+        YamlConfiguration yamlConfig = (YamlConfiguration) yaml.load(stringYaml);
+
+        return yamlConfig.getConfigParams();
+    }
+
     @Override
     public ConfigParams parse(String[] cmdLineArgs) {
         String configFilePath = null;
@@ -55,16 +80,7 @@ public class YamlParser implements ConfigurationParser {
 
         if(configFilePath != null) {
             try {
-                Constructor constructor = new Constructor(YamlConfiguration.class);
-                TypeDescription yamlParserDesc = new TypeDescription(YamlConfiguration.class);
-                yamlParserDesc.putListPropertyType("tests", YamlParseAction.class);
-                yamlParserDesc.putListPropertyType("phases", YamlParsePhase.class);
-                yamlParserDesc.putListPropertyType("publishers", YamlParseAction.class);
-                yamlParserDesc.putListPropertyType("metrics", YamlParseAction.class);
-                yamlParserDesc.putListPropertyType("extensions", YamlParseAction.class);
-                yamlParserDesc.putListPropertyType("feeders", YamlParseAction.class);
-
-                constructor.addTypeDescription(yamlParserDesc);
+                Constructor constructor = getYamlConstructor();
 
                 Yaml yaml = new Yaml(constructor);
                 YamlConfiguration yamlConfig = (YamlConfiguration) yaml.load(new FileInputStream(configFilePath));

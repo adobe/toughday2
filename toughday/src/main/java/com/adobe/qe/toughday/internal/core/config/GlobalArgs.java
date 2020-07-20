@@ -106,7 +106,6 @@ public class GlobalArgs implements com.adobe.qe.toughday.api.core.config.GlobalA
         long finalDuration = 0l;
         long intermDuration = 0l;
 
-        //if time unit is not specified, consider it seconds by default.
         if (duration.matches("^[0-9]+$")) {
             throw new IllegalArgumentException("Time unit is not specified");
         }
@@ -226,7 +225,11 @@ public class GlobalArgs implements com.adobe.qe.toughday.api.core.config.GlobalA
 
     @ConfigArgGet
     public long getTimeout() {
-        return timeout;
+        return timeout / 1000;
+    }
+
+    public long getTimeoutInSeconds() {
+        return this.timeout;
     }
 
     @ConfigArgSet(required = false, desc = "How long a test will run before it will be interrupted and marked as failed. Expressed in seconds",
